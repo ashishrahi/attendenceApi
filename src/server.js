@@ -7,6 +7,8 @@ const http = require('http');
 const swaggerUi = require("swagger-ui-express");   
 const authRoutes = require('./routes/authRoutes');
 const personaRoutes = require('./routes/personaRoutes');
+const DeptRoutes = require('./routes/DeptRoutes');
+const DesigRoutes = require('./routes/DesigRoutes')
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -26,6 +28,8 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/personas', personaRoutes);
+app.use('/api/department', DeptRoutes);
+app.use('/api/designation', DesigRoutes);
 
 const path = require("path");
 
