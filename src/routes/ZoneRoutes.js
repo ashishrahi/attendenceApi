@@ -19,10 +19,7 @@ const ZoneController = require('../controllers/ZoneController')
  *         description: Unauthorized
  */
 router.post('/create', ZoneController.createZone);
-<<<<<<< HEAD
 router.put('/update', ZoneController.updateZone);
-=======
->>>>>>> adidev0905
 router.get('/get', ZoneController.getZone);
 router.delete('/delete/:id', ZoneController.deleteZone);
 

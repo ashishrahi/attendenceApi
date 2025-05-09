@@ -9,6 +9,13 @@ const authRoutes = require('./routes/authRoutes');
 const personaRoutes = require('./routes/personaRoutes');
 const DeptRoutes = require('./routes/DeptRoutes');
 const DesigRoutes = require('./routes/DesigRoutes')
+const ZoneRoutes = require('./routes/ZoneRoutes');
+const WardRoutes = require('./routes/WardRoutes');
+const AreaRoutes = require('./routes/AreaRoutes');
+const BeatRoutes = require('./routes/BeatRoutes');
+const GenderRoutes = require('./routes/GenderRoutes');
+const RoleRoutes = require('./routes/RoleRoutes');
+const DashboardRoutes = require('./routes/DashboardRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -35,6 +42,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/personas', personaRoutes);
 app.use('/api/department', DeptRoutes);
 app.use('/api/designation', DesigRoutes);
+app.use('/api/zone', ZoneRoutes);
+app.use('/api/ward', WardRoutes);
+app.use('/api/area', AreaRoutes);
+app.use('/api/beat', BeatRoutes);
+app.use('/api/gender', GenderRoutes);
+app.use('/api/role', RoleRoutes);
+app.use('/api/dashboard', DashboardRoutes);
 
 const path = require("path");
 

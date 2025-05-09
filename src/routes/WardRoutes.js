@@ -19,10 +19,7 @@ const WardController = require('../controllers/WardController')
  *         description: Unauthorized
  */
 router.post('/create', WardController.createWard);
-<<<<<<< HEAD
 router.put('/update', WardController.updateWard);
-=======
->>>>>>> adidev0905
 router.get('/get', WardController.getWard);
 router.delete('/delete/:id', WardController.deleteWard);
 

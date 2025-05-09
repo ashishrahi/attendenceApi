@@ -19,10 +19,7 @@ const AreaController = require('../controllers/AreaController')
  *         description: Unauthorized
  */
 router.post('/create', AreaController.createArea);
-<<<<<<< HEAD
 router.put('/update', AreaController.updateArea);
-=======
->>>>>>> adidev0905
 router.get('/get', AreaController.getArea);
 router.delete('/delete/:id', AreaController.deleteArea);
 

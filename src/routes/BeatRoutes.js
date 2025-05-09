@@ -18,10 +18,7 @@ const BeatController = require('../controllers/BeatController');
  *         description: Unauthorized
  */
 router.post('/create', BeatController.createBeat);
-<<<<<<< HEAD
 router.put('/update', BeatController.updateBeat);
-=======
->>>>>>> adidev0905
 router.get('/get', BeatController.getBeat);
 router.delete('/delete/:id', BeatController.deleteBeat);
 

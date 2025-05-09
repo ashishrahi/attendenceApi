@@ -160,6 +160,87 @@ const deletepersona = async (req, res) => {
   }
 };
 
+const updatePersona = async (req, res) => {
+  try {
+    const {
+      userid,
+      deptId,
+      desigId,
+      zoneId,
+      wardId,
+      areaId,
+      beatId,
+      genderId,
+      firstName,
+      middleName,
+      lastName,
+      fatherName,
+      motherName,
+      email,
+      phone,
+      address,
+      dob,
+      shiftid 
+    } = req.body;
+    const pool = await getConnection();
+    
+    const result = await pool.request()
+    .input('userid', sql.Int, userid)
+    .input('dept_id', sql.Int, deptId)
+    .input('desig_id', sql.Int, desigId)
+    .input('zone_id', sql.Int, zoneId)
+    .input('ward_id', sql.Int, wardId)
+    .input('area_id', sql.Int, areaId)
+    .input('beat_id', sql.Int, beatId)
+    .input('gender_id', sql.Int, genderId)
+    .input('first_name', sql.NVarChar, firstName)
+    .input('middle_name', sql.NVarChar, middleName)
+    .input('last_name', sql.NVarChar, lastName)
+    .input('father_name', sql.NVarChar, fatherName)
+    .input('mother_name', sql.NVarChar, motherName)
+    .input('email', sql.NVarChar, email)
+    .input('phone', sql.NVarChar, phone)
+    .input('address', sql.NVarChar, address)
+    .input('dob', sql.Date, dob)
+    .input('shiftid', sql.Int, shiftid)
+    .query(`
+      UPDATE [iDMS].[dbo].[d00_emptable]
+      SET 
+        dept_id = @dept_id,
+        desig_id = @desig_id,
+        zone_id = @zone_id,
+        ward_id = @ward_id,
+        area_id = @area_id,
+        beat_id = @beat_id,
+        gender_id = @gender_id,
+        first_name = @first_name,
+        middle_name = @middle_name,
+        last_name = @last_name,
+        father_name = @father_name,
+        mother_name = @mother_name,
+        email = @email,
+        phone = @phone,
+        address = @address,
+        dob = @dob,
+        shiftid = @shiftid
+      WHERE userid = @userid
+    `);
+    
+
+    
+    res.json({
+      success: true,
+      message: 'updated successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createPersona,
   getPersonas,

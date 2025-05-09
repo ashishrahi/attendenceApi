@@ -18,10 +18,7 @@ const DeptController = require('../controllers/DeptController');
  *         description: Unauthorized
  */
 router.post('/create', DeptController.createDepartment);
-<<<<<<< HEAD
 router.put('/update', DeptController.updateDepartment);
-=======
->>>>>>> adidev0905
 router.get('/get', DeptController.getDepartment);
 router.delete('/delete/:id', DeptController.deleteDepartment);
 

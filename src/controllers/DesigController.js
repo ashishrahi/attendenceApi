@@ -75,8 +75,7 @@ const getDesignation = async (req, res) => {
         // const UserRole = req.user.personData.RoleName;
         const pool = await getConnection();
         const result = await pool.request()
-            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d02_desig]")
-            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d02_desig]")
+            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d02_desig]");
         console.log(result);
         // const { IsSuccess, Message } = result.recordsets[0][0];
         const designation = result.recordset;

@@ -75,17 +75,14 @@ const getDepartment = async (req, res) => {
         // const UserRole = req.user.personData.RoleName;
         const pool = await getConnection();
         const result = await pool.request()
-            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d01_dept]")
-            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d01_dept]")
+            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d01_dept]");
         console.log(result);
         // const { IsSuccess, Message } = result.recordsets[0][0];
-        const designation = result.recordset;
         const designation = result.recordset;
 
         res.json({
             success: true,
             message: "Message",
-            data: designation
             data: designation
         });
 
@@ -98,40 +95,7 @@ const getDepartment = async (req, res) => {
     }
 };
 
-const deleteDepartment = async (req, res) => {
-    try {
-      const { id } = req.params;
-  
-      if (!id || isNaN(id)) {
-        return res.status(400).json({ success: false, message: 'Invalid ID' });
-      }
-  
-      const pool = await getConnection();
-  
-      const result = await pool.request()
-        .input('id', sql.Int, id)
-        .query(`DELETE FROM d01_dept WHERE Id = @id;`);
-  
-      if (result.rowsAffected[0] > 0) {
-        res.json({
-          success: true,
-          message: 'Deleted successfully'
-        });
-      } else {
-        res.status(404).json({
-          success: false,
-          message: 'Department not found'
-        });
-      }
-    } catch (error) {
-      console.error('Error in deleteDepartment:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: error.message
-      });
-    }
-  };
+
   
 
 const deleteDepartment = async (req, res) => {
