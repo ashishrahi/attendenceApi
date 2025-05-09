@@ -13,6 +13,7 @@ const ZoneRoutes = require('./routes/ZoneRoutes');
 const WardRoutes = require('./routes/WardRoutes');
 const AreaRoutes = require('./routes/AreaRoutes');
 const BeatRoutes = require('./routes/BeatRoutes');
+const DashboardRoutes = require('./routes/DashboardRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -43,6 +44,7 @@ app.use('/api/zone', ZoneRoutes);
 app.use('/api/ward', WardRoutes);
 app.use('/api/area', AreaRoutes);
 app.use('/api/beat', BeatRoutes);
+app.use('/api/dashboard', DashboardRoutes);
 
 const path = require("path");
 
@@ -67,15 +69,15 @@ app.use("/app", swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 
 const PORT = process.env.PORT || 5000;
-const HOST = '192.168.1.34';  // To listen on all network interfaces (external access)
+const HOST = '192.168.1.38';  // To listen on all network interfaces (external access)
 
-app.listen(PORT, HOST, () => {
-  console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
-});
+// app.listen(PORT, HOST, () => {
+//   console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
+// });
 
 
 // const PORT = process.env.PORT || 5000;
-// app.listen(PORT, () => {
-//   console.log(`Server is running on port http://localhost:${PORT}`);
-// });
+app.listen(PORT, () => {
+  console.log(`Server is running on port http://localhost:${PORT}`);
+});
 
