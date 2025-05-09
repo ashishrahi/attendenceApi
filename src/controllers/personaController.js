@@ -5,47 +5,141 @@ const { AccountCreationmail } = require('../middleware/emailservice');
 const createPersona = async (req, res) => {
   try {
     const {
-      fullName, genderId, address, email, phoneNumber, stateId, countryId,
-      districtId, emergencyContact, personPicture, dateOfBirth, dateOfJoining,
-      dlNumber, vehicleNumber, pincodeId, maritalStatusId, designationId,
-      departmentId, roleId, status, username, password
+      userid,
+      deptId,
+      desigId,
+      zoneId,
+      wardId,
+      areaId,
+      beatId,
+      genderId,
+      firstName,
+      middleName,
+      lastName,
+      fatherName,
+      motherName,
+      email,
+      phone,
+      address,
+      dob 
     } = req.body;
-
     const pool = await getConnection();
     
     const result = await pool.request()
-      .input('Type', sql.Int, 1)
-      .input('FullName', sql.NVarChar, fullName)
-      .input('GenderId', sql.Int, genderId)
-      .input('Address', sql.NVarChar, address)
-      .input('Email', sql.NVarChar, email)
-      .input('PhoneNumber', sql.NVarChar, phoneNumber)
-      .input('StateID', sql.Int, stateId)
-      .input('CountryID', sql.Int, countryId)
-      .input('DistrictID', sql.Int, districtId)
-      .input('EmergencyContact', sql.NVarChar, emergencyContact)
-      .input('PersonPicture', sql.NVarChar, personPicture)
-      .input('DateOfBirth', sql.Date, dateOfBirth)
-      .input('DateOfJoining', sql.Date, dateOfJoining)
-      .input('DLNumber', sql.NVarChar, dlNumber)
-      .input('VehicleNumber', sql.NVarChar, vehicleNumber)
-      .input('PincodeID', sql.Int, pincodeId)
-      .input('MaritalStatusId', sql.Int, maritalStatusId)
-      .input('DesignationID', sql.Int, designationId)
-      .input('DepartmentID', sql.Int, departmentId)
-      .input('RoleId', sql.Int, roleId)
-      .input('Status', sql.Bit, status)
-      .input('UserName', sql.NVarChar, username)
-      .input('HashPassword', sql.NVarChar, encryptData(password))
-      .execute('ManagePersonaDetails');
+    .input('userid', sql.Int, userid)
+    .input('dept_id', sql.Int, deptId)
+    .input('desig_id', sql.Int, desigId)
+    .input('zone_id', sql.Int, zoneId)
+    .input('ward_id', sql.Int, wardId)
+    .input('area_id', sql.Int, areaId)
+    .input('beat_id', sql.Int, beatId)
+    .input('gender_id', sql.Int, genderId)
+    .input('first_name', sql.NVarChar, firstName)
+    .input('middle_name', sql.NVarChar, middleName)
+    .input('last_name', sql.NVarChar, lastName)
+    .input('father_name', sql.NVarChar, fatherName)
+    .input('mother_name', sql.NVarChar, motherName)
+    .input('email', sql.NVarChar, email)
+    .input('phone', sql.NVarChar, phone)
+    .input('address', sql.NVarChar, address)
+    .input('dob', sql.Date, dob)
+      .query(`INSERT INTO [iDMS].[dbo].[d00_emptable]
+(userid, dept_id, desig_id, zone_id, ward_id, area_id, beat_id, gender_id,
+ first_name, middle_name, last_name, father_name, mother_name,
+ email, phone, address, dob)
+VALUES (@userid, @dept_id, @desig_id, @zone_id, @ward_id, @area_id, @beat_id, @gender_id,
+        @first_name, @middle_name, @last_name, @father_name, @mother_name,
+        @email, @phone, @address, @dob)
+`);
 
-    const { IsSuccess, Message } = result.recordsets[0][0];
+    
 
-    AccountCreationmail(username, password, email);
+   
     
     res.json({
-      success: IsSuccess,
-      message: Message
+      success: true,
+      message: 'data inserted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+const updatePersona = async (req, res) => {
+  try {
+    const {
+      userid,
+      deptId,
+      desigId,
+      zoneId,
+      wardId,
+      areaId,
+      beatId,
+      genderId,
+      firstName,
+      middleName,
+      lastName,
+      fatherName,
+      motherName,
+      email,
+      phone,
+      address,
+      dob,
+      shiftid 
+    } = req.body;
+    const pool = await getConnection();
+    
+    const result = await pool.request()
+    .input('userid', sql.Int, userid)
+    .input('dept_id', sql.Int, deptId)
+    .input('desig_id', sql.Int, desigId)
+    .input('zone_id', sql.Int, zoneId)
+    .input('ward_id', sql.Int, wardId)
+    .input('area_id', sql.Int, areaId)
+    .input('beat_id', sql.Int, beatId)
+    .input('gender_id', sql.Int, genderId)
+    .input('first_name', sql.NVarChar, firstName)
+    .input('middle_name', sql.NVarChar, middleName)
+    .input('last_name', sql.NVarChar, lastName)
+    .input('father_name', sql.NVarChar, fatherName)
+    .input('mother_name', sql.NVarChar, motherName)
+    .input('email', sql.NVarChar, email)
+    .input('phone', sql.NVarChar, phone)
+    .input('address', sql.NVarChar, address)
+    .input('dob', sql.Date, dob)
+    .input('shiftid', sql.Int, shiftid)
+    .query(`
+      UPDATE [iDMS].[dbo].[d00_emptable]
+      SET 
+        dept_id = @dept_id,
+        desig_id = @desig_id,
+        zone_id = @zone_id,
+        ward_id = @ward_id,
+        area_id = @area_id,
+        beat_id = @beat_id,
+        gender_id = @gender_id,
+        first_name = @first_name,
+        middle_name = @middle_name,
+        last_name = @last_name,
+        father_name = @father_name,
+        mother_name = @mother_name,
+        email = @email,
+        phone = @phone,
+        address = @address,
+        dob = @dob,
+        shiftid = @shiftid
+      WHERE userid = @userid
+    `);
+    
+
+    
+    res.json({
+      success: true,
+      message: 'updated successfully'
     });
   } catch (error) {
     res.status(500).json({
@@ -64,7 +158,34 @@ const getPersonas = async (req, res) => {
     // const UserRole = req.user.personData.RoleName;
     const pool = await getConnection();
     const result = await pool.request()
-      .query("SELECT DISTINCT UserID, Name FROM [iDMS].[dbo].[Userdetail];")
+      .query(`
+        SELECT DISTINCT 
+    u.UserID, 
+    u.Name, 
+    e.dept_id,
+    e.desig_id,
+    e.zone_id,
+    e.ward_id,
+    e.area_id,
+    e.beat_id,
+    e.gender_id,
+    e.first_name,
+    e.middle_name,
+    e.last_name,
+    e.father_name,
+    e.mother_name,
+    e.email,
+    e.phone,
+    e.address,
+    e.dob,
+    e.shiftid
+FROM 
+    [iDMS].[dbo].[Userdetail] u
+JOIN 
+    [iDMS].[dbo].[d00_emptable] e 
+    ON u.UserID = e.userid
+
+      `);
     console.log(result);
     
     // const { IsSuccess, Message } = result.recordsets[0][0];
@@ -120,19 +241,13 @@ const getPersonaDetails = async (req, res) => {
 
 const deletepersona = async (req, res) => {
   try {
-    const {  PersonID } = req.body;
-
-
-    const UserRole = req.user.personData.RoleName;
-    if(UserRole === 'admin' || UserRole === 'superadmin'){
-    
+    const {  userid } = req.body;
     const pool = await getConnection();
-    console.log(personId)
+    console.log(userid)
     
     const result = await pool.request()
-      .input('Type', sql.Int, 4)
-      .input('PersonID', sql.Int, PersonID)
-      .execute('ManagePersonaDetails');
+      .input('userid', sql.Int, userid)
+      .execute('delete [iDMS].[dbo].[d00_emptable] where userid = @userid');
 
     const { IsSuccess, Message } = result.recordsets[0][0];
     console.log(result.recordsets);
@@ -144,13 +259,7 @@ const deletepersona = async (req, res) => {
       // data: personaDetails
     });
   }
-  else{
-    res.status(401).json({
-      success: false,
-      message: 'You are not authorized to access this resource'
-    });
-  }
-  } catch (error) {
+   catch (error) {
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -163,5 +272,6 @@ module.exports = {
   createPersona,
   getPersonas,
   getPersonaDetails,
-  deletepersona
+  deletepersona,
+  updatePersona
 };

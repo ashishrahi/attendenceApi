@@ -8,7 +8,13 @@ const swaggerUi = require("swagger-ui-express");
 const authRoutes = require('./routes/authRoutes');
 const personaRoutes = require('./routes/personaRoutes');
 const DeptRoutes = require('./routes/DeptRoutes');
-const DesigRoutes = require('./routes/DesigRoutes')
+const DesigRoutes = require('./routes/DesigRoutes');
+const ZoneRoutes = require('./routes/ZoneRoutes');
+const WardRoutes = require('./routes/WardRoutes');
+const AreaRoutes = require('./routes/AreaRoutes');
+const BeatRoutes = require('./routes/BeatRoutes');
+const GenderRoutes = require('./routes/GenderRoutes');
+const RoleRoutes = require('./routes/RoleRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -26,10 +32,21 @@ app.use(express.urlencoded({ extended: true }));
 // });
 // app.use(limiter);
 
+app.get('/hello',(req,res)=>{
+  res.send("hello")
+}
+)
+
 app.use('/api/auth', authRoutes);
 app.use('/api/personas', personaRoutes);
 app.use('/api/department', DeptRoutes);
 app.use('/api/designation', DesigRoutes);
+app.use('/api/zone', ZoneRoutes);
+app.use('/api/ward', WardRoutes);
+app.use('/api/area', AreaRoutes);
+app.use('/api/beat', BeatRoutes);
+app.use('/api/gender', GenderRoutes);
+app.use('/api/role', RoleRoutes);
 
 const path = require("path");
 
@@ -54,7 +71,13 @@ app.use("/app", swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port http://localhost:${PORT}`);
+const HOST = '192.168.1.34';  // To listen on all network interfaces (external access)
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
 });
+
+// app.listen(PORT, () => {
+//   console.log(`Server is running on port http://localhost:${PORT}`);
+// });
 

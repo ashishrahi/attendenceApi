@@ -1,0 +1,19 @@
+{
+  "userid": 1,
+  "deptId": 1,
+  "desigId": 1,
+  "zoneId": 1,
+  "wardId": 1,
+  "areaId": 1,
+  "beatId": 1,
+  "genderId": 1,
+  "firstName": "Aditya",
+  "middleName": "Kumar",
+  "lastName": "Sharma",
+  "fatherName": "Ramesh Sharma",
+  "motherName": "Sunita Sharma",
+  "email": "aditya@example.com",
+  "phone": "9876543210",
+  "address": "123 Main Street",
+  "dob": "1995-08-15"
+}
