@@ -132,42 +132,6 @@ const deleteDesignation = async (req, res) => {
   };
   
 
-const deleteDesignation = async (req, res) => {
-    try {
-      const { id } = req.params;
-  
-      if (!id || isNaN(id)) {
-        return res.status(400).json({ success: false, message: 'Invalid ID' });
-      }
-  
-      const pool = await getConnection();
-  
-      const result = await pool.request()
-        .input('id', sql.Int, id)
-        .query(`DELETE FROM d02_desig WHERE Id = @id;`);
-  
-      if (result.rowsAffected[0] > 0) {
-        res.json({
-          success: true,
-          message: 'Deleted successfully'
-        });
-      } else {
-        res.status(404).json({
-          success: false,
-          message: 'Designation not found'
-        });
-      }
-    } catch (error) {
-      console.error('Error in deleteDesignation:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: error.message
-      });
-    }
-  };
-  
-
 module.exports = {
     getDesignation,
     createDesignation,
