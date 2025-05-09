@@ -32,6 +32,7 @@ const createZone = async (req, res) => {
       });
     }
   };
+<<<<<<< HEAD
 
   const updateZone = async (req, res) => {
   try {
@@ -69,6 +70,9 @@ const createZone = async (req, res) => {
 };
 
 
+=======
+  
+>>>>>>> adidev0905
 const getZone = async (req, res) => {
     try {
         // console.log(req.user.personData);
@@ -134,6 +138,10 @@ const deleteZone = async (req, res) => {
 module.exports = {
     getZone,
     createZone,
+<<<<<<< HEAD
     deleteZone,
     updateZone
+=======
+    deleteZone
+>>>>>>> adidev0905
 };

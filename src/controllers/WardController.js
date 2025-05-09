@@ -34,6 +34,7 @@ const createWard = async (req, res) => {
     }
   };
   
+<<<<<<< HEAD
   const updateWard = async (req, res) => {
     try {
       const { id, name, code, zone_id } = req.body;
@@ -72,6 +73,8 @@ const createWard = async (req, res) => {
   };
   
 
+=======
+>>>>>>> adidev0905
 const getWard = async (req, res) => {
     try {
         // console.log(req.user.personData);
@@ -137,6 +140,10 @@ const deleteWard = async (req, res) => {
 module.exports = {
     getWard,
     createWard,
+<<<<<<< HEAD
     deleteWard,
     updateWard
+=======
+    deleteWard
+>>>>>>> adidev0905
 };
