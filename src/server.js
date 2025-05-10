@@ -16,6 +16,7 @@ const BeatRoutes = require('./routes/BeatRoutes');
 const GenderRoutes = require('./routes/GenderRoutes');
 const RoleRoutes = require('./routes/RoleRoutes');
 const DashboardRoutes = require('./routes/DashboardRoutes');
+const ShiftRoutes = require('./routes/ShiftRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -39,6 +40,7 @@ app.get('/hello',(req,res)=>{
 )
 
 app.use('/api/auth', authRoutes);
+app.use('/api/shift', ShiftRoutes);
 app.use('/api/personas', personaRoutes);
 app.use('/api/department', DeptRoutes);
 app.use('/api/designation', DesigRoutes);
@@ -70,10 +72,18 @@ app.use("/app", swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 
 
-
-
 const PORT = process.env.PORT || 5000;
+const HOST = '192.168.1.36';  // To listen on all network interfaces (external access)
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
+});
+
+
+// const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port http://localhost:${PORT}`);
 });
+
+
 

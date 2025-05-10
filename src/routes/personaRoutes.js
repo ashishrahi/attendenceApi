@@ -19,7 +19,7 @@ const auth = require('../middleware/auth');
  */
 router.get('/me', auth, personaController.getPersonaDetails);
 router.post('/create', personaController.createPersona);
-router.put('/update', personaController.updatePersona);
+router.put('/update/:id', personaController.updatePersona);
 router.get('/get', personaController.getPersonas);
 
 module.exports = router;

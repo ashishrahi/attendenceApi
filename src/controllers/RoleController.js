@@ -32,38 +32,39 @@ const createRole = async (req, res) => {
     }
   };
   
-  const updateRole = async (req, res) => {
-    try {
-      const { id, rolename} = req.body;
-  
-      const pool = await getConnection();
-  
-      const result = await pool.request()
-        .input('id', sql.Int, id)
-        .input('rolename', sql.NVarChar, rolename)
-        .query(`
-          UPDATE d07_rolemaster
-          SET RoleName = @rolename,
-          WHERE Id = @id;
-          
-          SELECT 1 AS IsSuccess, 'Updated successfully' AS Message;
-        `);
-  
-      const { IsSuccess, Message } = result.recordset[0];
-  
-      res.json({
-        success: IsSuccess,
-        message: Message
-      });
-    } catch (error) {
-      console.error('Error in updateRole:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: error.message
-      });
-    }
-  };
+ const updateRole = async (req, res) => {
+  try {
+    const { id, rolename } = req.body;
+
+    const pool = await getConnection();
+
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .input('rolename', sql.NVarChar, rolename)
+      .query(`
+        UPDATE d07_rolemaster
+        SET RoleName = @rolename
+        WHERE Id = @id;
+
+        SELECT 1 AS IsSuccess, 'Updated successfully' AS Message;
+      `);
+
+    const { IsSuccess, Message } = result.recordset[0];
+
+    res.json({
+      success: IsSuccess,
+      message: Message
+    });
+  } catch (error) {
+    console.error('Error in updateRole:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
   
 
 const getRole = async (req, res) => {

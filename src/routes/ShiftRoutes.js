@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const GenderController = require('../controllers/GenderController')
+// const DeptController = require('../controllers/DeptController');
+const ShiftController = require('../controllers/ShiftController')
 // const auth = require('../middleware/auth');
 
 /**
- * @swagger 
+ * @swagger
  * /api/personas/me:
  *   get:
  *     tags: [Personas]
@@ -17,10 +18,9 @@ const GenderController = require('../controllers/GenderController')
  *       401:
  *         description: Unauthorized
  */
-router.post('/create', GenderController.createGender);
-router.put('/update', GenderController.updateGender);
-router.get('/get', GenderController.getGender);
-router.delete('/delete/:id', GenderController.deleteGender);
-
+router.post('/create', ShiftController.createShift);
+router.put('/update', ShiftController.updateShift);
+router.get('/get', ShiftController.getShift);
+router.delete('/delete/:id', ShiftController.deleteShift);
 
 module.exports = router;
