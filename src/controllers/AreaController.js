@@ -1,18 +1,19 @@
 const { getConnection, sql } = require('../config/database');
 
 
-const createDepartment = async (req, res) => {
+const createArea = async (req, res) => {
     try {
-      const { name, code } = req.body;
+      const { name, code, ward_id} = req.body;
   
       const pool = await getConnection();
   
       const result = await pool.request()
         .input('name', sql.NVarChar, name)
         .input('code', sql.NVarChar, code)
+        .input('ward_id', sql.Int, ward_id)
         .query(`
-          INSERT INTO d01_dept (Name, Code)
-          VALUES (@name, @code);
+          INSERT INTO d05_area (Name, Code, Ward_Id)
+          VALUES (@name, @code, @ward_id);
           
           SELECT 1 AS IsSuccess, 'Added successfully' AS Message;
         `);
@@ -24,7 +25,7 @@ const createDepartment = async (req, res) => {
         message: Message
       });
     } catch (error) {
-      console.error('Error in createDepartment:', error);
+      console.error('Error in createWard:', error);
       res.status(500).json({
         success: false,
         message: 'Server error',
@@ -32,10 +33,10 @@ const createDepartment = async (req, res) => {
       });
     }
   };
-
-  const updateDepartment = async (req, res) => {
+  
+  const updateArea = async (req, res) => {
     try {
-      const { id, name, code } = req.body;
+      const { id, name, code, ward_id } = req.body;
   
       const pool = await getConnection();
   
@@ -43,10 +44,12 @@ const createDepartment = async (req, res) => {
         .input('id', sql.Int, id)
         .input('name', sql.NVarChar, name)
         .input('code', sql.NVarChar, code)
+        .input('ward_id', sql.Int, ward_id)
         .query(`
-          UPDATE d01_dept
+          UPDATE d05_area
           SET Name = @name,
-              Code = @code
+              Code = @code,
+              Ward_Id = @ward_id
           WHERE Id = @id;
           
           SELECT 1 AS IsSuccess, 'Updated successfully' AS Message;
@@ -59,7 +62,7 @@ const createDepartment = async (req, res) => {
         message: Message
       });
     } catch (error) {
-      console.error('Error in updateDepartment:', error);
+      console.error('Error in updateArea:', error);
       res.status(500).json({
         success: false,
         message: 'Server error',
@@ -68,22 +71,22 @@ const createDepartment = async (req, res) => {
     }
   };
   
-  
-const getDepartment = async (req, res) => {
+
+const getArea = async (req, res) => {
     try {
         // console.log(req.user.personData);
         // const UserRole = req.user.personData.RoleName;
         const pool = await getConnection();
         const result = await pool.request()
-            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d01_dept]");
+            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d05_area]")
         console.log(result);
         // const { IsSuccess, Message } = result.recordsets[0][0];
-        const designation = result.recordset;
+        const area = result.recordset;
 
         res.json({
             success: true,
             message: "Message",
-            data: designation
+            data: area
         });
 
     } catch (error) {
@@ -95,10 +98,7 @@ const getDepartment = async (req, res) => {
     }
 };
 
-
-  
-
-const deleteDepartment = async (req, res) => {
+const deleteArea = async (req, res) => {
     try {
       const { id } = req.params;
   
@@ -110,7 +110,7 @@ const deleteDepartment = async (req, res) => {
   
       const result = await pool.request()
         .input('id', sql.Int, id)
-        .query(`DELETE FROM d01_dept WHERE Id = @id;`);
+        .query(`DELETE FROM d05_area WHERE Id = @id;`);
   
       if (result.rowsAffected[0] > 0) {
         res.json({
@@ -120,11 +120,11 @@ const deleteDepartment = async (req, res) => {
       } else {
         res.status(404).json({
           success: false,
-          message: 'Department not found'
+          message: 'Area not found'
         });
       }
     } catch (error) {
-      console.error('Error in deleteDepartment:', error);
+      console.error('Error in deleteArea:', error);
       res.status(500).json({
         success: false,
         message: 'Server error',
@@ -135,8 +135,8 @@ const deleteDepartment = async (req, res) => {
   
 
 module.exports = {
-    getDepartment,
-    createDepartment,
-    deleteDepartment,
-    updateDepartment
+    getArea,
+    createArea,
+    deleteArea,
+    updateArea
 };

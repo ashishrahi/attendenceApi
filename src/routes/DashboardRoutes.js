@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const DeptController = require('../controllers/DeptController');
+// const DeptController = require('../controllers/DeptController');
+const DashboardController = require('../controllers/DashboardController')
 // const auth = require('../middleware/auth');
 
 /**
@@ -17,9 +18,5 @@ const DeptController = require('../controllers/DeptController');
  *       401:
  *         description: Unauthorized
  */
-router.post('/create', DeptController.createDepartment);
-router.put('/update', DeptController.updateDepartment);
-router.get('/get', DeptController.getDepartment);
-router.delete('/delete/:id', DeptController.deleteDepartment);
-
+router.post('/get', DashboardController.Dasboarddata);
 module.exports = router;

@@ -1,18 +1,17 @@
 const { getConnection, sql } = require('../config/database');
 
 
-const createDepartment = async (req, res) => {
+const createRole = async (req, res) => {
     try {
-      const { name, code } = req.body;
+      const { rolename} = req.body;
   
       const pool = await getConnection();
   
       const result = await pool.request()
-        .input('name', sql.NVarChar, name)
-        .input('code', sql.NVarChar, code)
+        .input('rolename', sql.NVarChar, rolename)
         .query(`
-          INSERT INTO d01_dept (Name, Code)
-          VALUES (@name, @code);
+          INSERT INTO d07_rolemaster (RoleName)
+          VALUES (@rolename);
           
           SELECT 1 AS IsSuccess, 'Added successfully' AS Message;
         `);
@@ -24,7 +23,7 @@ const createDepartment = async (req, res) => {
         message: Message
       });
     } catch (error) {
-      console.error('Error in createDepartment:', error);
+      console.error('Error in createRole:', error);
       res.status(500).json({
         success: false,
         message: 'Server error',
@@ -32,58 +31,57 @@ const createDepartment = async (req, res) => {
       });
     }
   };
+  
+ const updateRole = async (req, res) => {
+  try {
+    const { id, rolename } = req.body;
 
-  const updateDepartment = async (req, res) => {
-    try {
-      const { id, name, code } = req.body;
+    const pool = await getConnection();
+
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .input('rolename', sql.NVarChar, rolename)
+      .query(`
+        UPDATE d07_rolemaster
+        SET RoleName = @rolename
+        WHERE Id = @id;
+
+        SELECT 1 AS IsSuccess, 'Updated successfully' AS Message;
+      `);
+
+    const { IsSuccess, Message } = result.recordset[0];
+
+    res.json({
+      success: IsSuccess,
+      message: Message
+    });
+  } catch (error) {
+    console.error('Error in updateRole:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
   
-      const pool = await getConnection();
-  
-      const result = await pool.request()
-        .input('id', sql.Int, id)
-        .input('name', sql.NVarChar, name)
-        .input('code', sql.NVarChar, code)
-        .query(`
-          UPDATE d01_dept
-          SET Name = @name,
-              Code = @code
-          WHERE Id = @id;
-          
-          SELECT 1 AS IsSuccess, 'Updated successfully' AS Message;
-        `);
-  
-      const { IsSuccess, Message } = result.recordset[0];
-  
-      res.json({
-        success: IsSuccess,
-        message: Message
-      });
-    } catch (error) {
-      console.error('Error in updateDepartment:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: error.message
-      });
-    }
-  };
-  
-  
-const getDepartment = async (req, res) => {
+
+const getRole = async (req, res) => {
     try {
         // console.log(req.user.personData);
         // const UserRole = req.user.personData.RoleName;
         const pool = await getConnection();
         const result = await pool.request()
-            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d01_dept]");
+            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d07_rolemaster]")
         console.log(result);
         // const { IsSuccess, Message } = result.recordsets[0][0];
-        const designation = result.recordset;
+        const ward = result.recordset;
 
         res.json({
             success: true,
             message: "Message",
-            data: designation
+            data: ward
         });
 
     } catch (error) {
@@ -95,10 +93,7 @@ const getDepartment = async (req, res) => {
     }
 };
 
-
-  
-
-const deleteDepartment = async (req, res) => {
+const deleteRole = async (req, res) => {
     try {
       const { id } = req.params;
   
@@ -110,7 +105,7 @@ const deleteDepartment = async (req, res) => {
   
       const result = await pool.request()
         .input('id', sql.Int, id)
-        .query(`DELETE FROM d01_dept WHERE Id = @id;`);
+        .query(`DELETE FROM d07_rolemaster WHERE Id = @id;`);
   
       if (result.rowsAffected[0] > 0) {
         res.json({
@@ -120,11 +115,11 @@ const deleteDepartment = async (req, res) => {
       } else {
         res.status(404).json({
           success: false,
-          message: 'Department not found'
+          message: 'Role not found'
         });
       }
     } catch (error) {
-      console.error('Error in deleteDepartment:', error);
+      console.error('Error in deleteRole:', error);
       res.status(500).json({
         success: false,
         message: 'Server error',
@@ -135,8 +130,8 @@ const deleteDepartment = async (req, res) => {
   
 
 module.exports = {
-    getDepartment,
-    createDepartment,
-    deleteDepartment,
-    updateDepartment
+    getRole,
+    createRole,
+    deleteRole,
+    updateRole
 };
