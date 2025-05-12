@@ -18,5 +18,9 @@ const ReportController = require('../controllers/ReportController')
  *       401:
  *         description: Unauthorized
  */
-router.post('/get', ReportController.ReportController);
+router.post('/daily', ReportController.handleDailyReport);
+router.post('/montly', ReportController.handleMonthlyReport);
+router.post('/punch', ReportController.handlePunchReport);
+
+
 module.exports = router;

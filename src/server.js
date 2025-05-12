@@ -77,9 +77,9 @@ app.use("/app", swaggerUi.serve, swaggerUi.setup(swaggerFile));
 const PORT = process.env.PORT || 5000;
 const HOST = '192.168.1.36';  // To listen on all network interfaces (external access)
 
-app.listen(PORT, HOST, () => {
-  console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
-});
+// app.listen(PORT, HOST, () => {
+//   console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
+// });
 
 
 // const PORT = process.env.PORT || 5000;
