@@ -18,6 +18,7 @@ const RoleRoutes = require('./routes/RoleRoutes');
 const DashboardRoutes = require('./routes/DashboardRoutes');
 const ShiftRoutes = require('./routes/ShiftRoutes');
 const ReportRoutes = require('./routes/ReportRoutes');
+const HoliDayRoutes = require('./routes/HoliDayRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -42,6 +43,7 @@ app.get('/hello',(req,res)=>{
 
 app.use('/api/auth', authRoutes);
 app.use('/api/shift', ShiftRoutes);
+app.use('/api/holiday', HoliDayRoutes);
 app.use('/api/personas', personaRoutes);
 app.use('/api/department', DeptRoutes);
 app.use('/api/designation', DesigRoutes);
