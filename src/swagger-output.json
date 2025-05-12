@@ -135,6 +135,115 @@
         }
       }
     },
+    "/api/shift/create": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "shiftname": {
+                  "example": "any"
+                },
+                "intime": {
+                  "example": "any"
+                },
+                "outtime": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/shift/update": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "example": "any"
+                },
+                "shiftname": {
+                  "example": "any"
+                },
+                "intime": {
+                  "example": "any"
+                },
+                "outtime": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/shift/get": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/shift/delete/{id}": {
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/api/personas/me": {
       "get": {
         "description": "",
@@ -171,40 +280,40 @@
                 "userid": {
                   "example": "any"
                 },
-                "deptId": {
+                "dept_id": {
                   "example": "any"
                 },
-                "desigId": {
+                "desig_id": {
                   "example": "any"
                 },
-                "zoneId": {
+                "zone_id": {
                   "example": "any"
                 },
-                "wardId": {
+                "ward_id": {
                   "example": "any"
                 },
-                "areaId": {
+                "area_id": {
                   "example": "any"
                 },
-                "beatId": {
+                "beat_id": {
                   "example": "any"
                 },
-                "genderId": {
+                "gender_id": {
                   "example": "any"
                 },
-                "firstName": {
+                "first_name": {
                   "example": "any"
                 },
-                "middleName": {
+                "middle_name": {
                   "example": "any"
                 },
-                "lastName": {
+                "last_name": {
                   "example": "any"
                 },
-                "fatherName": {
+                "father_name": {
                   "example": "any"
                 },
-                "motherName": {
+                "mother_name": {
                   "example": "any"
                 },
                 "email": {
@@ -217,6 +326,9 @@
                   "example": "any"
                 },
                 "dob": {
+                  "example": "any"
+                },
+                "shiftid": {
                   "example": "any"
                 }
               }
@@ -233,12 +345,86 @@
         }
       }
     },
-    "/api/personas/update": {
+    "/api/personas/update/{id}": {
       "put": {
         "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "userid": {
+                  "example": "any"
+                },
+                "dept_id": {
+                  "example": "any"
+                },
+                "desig_id": {
+                  "example": "any"
+                },
+                "zone_id": {
+                  "example": "any"
+                },
+                "ward_id": {
+                  "example": "any"
+                },
+                "area_id": {
+                  "example": "any"
+                },
+                "beat_id": {
+                  "example": "any"
+                },
+                "gender_id": {
+                  "example": "any"
+                },
+                "first_name": {
+                  "example": "any"
+                },
+                "middle_name": {
+                  "example": "any"
+                },
+                "last_name": {
+                  "example": "any"
+                },
+                "father_name": {
+                  "example": "any"
+                },
+                "mother_name": {
+                  "example": "any"
+                },
+                "email": {
+                  "example": "any"
+                },
+                "phone": {
+                  "example": "any"
+                },
+                "address": {
+                  "example": "any"
+                },
+                "dob": {
+                  "example": "any"
+                },
+                "shiftid": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }
@@ -919,6 +1105,36 @@
         }
       }
     },
+    "/api/gender/update": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "example": "any"
+                },
+                "name": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/api/gender/get": {
       "get": {
         "description": "",
@@ -1079,6 +1295,102 @@
           },
           "400": {
             "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/report/daily": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "example": "any"
+                },
+                "employeeId": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/report/montly": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fromDate": {
+                  "example": "any"
+                },
+                "toDate": {
+                  "example": "any"
+                },
+                "employeeId": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/report/punch": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fromDate": {
+                  "example": "any"
+                },
+                "toDate": {
+                  "example": "any"
+                },
+                "employeeId": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           },
           "500": {
             "description": "Internal Server Error"

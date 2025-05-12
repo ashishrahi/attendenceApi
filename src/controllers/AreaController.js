@@ -78,7 +78,7 @@ const getArea = async (req, res) => {
         // const UserRole = req.user.personData.RoleName;
         const pool = await getConnection();
         const result = await pool.request()
-            .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d05_area]")
+            .query("SELECT DISTINCT * FROM d05_area")
         console.log(result);
         // const { IsSuccess, Message } = result.recordsets[0][0];
         const area = result.recordset;
