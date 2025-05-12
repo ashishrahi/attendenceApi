@@ -17,6 +17,7 @@ const GenderRoutes = require('./routes/GenderRoutes');
 const RoleRoutes = require('./routes/RoleRoutes');
 const DashboardRoutes = require('./routes/DashboardRoutes');
 const ShiftRoutes = require('./routes/ShiftRoutes');
+const ReportRoutes = require('./routes/ReportRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -51,6 +52,7 @@ app.use('/api/beat', BeatRoutes);
 app.use('/api/gender', GenderRoutes);
 app.use('/api/role', RoleRoutes);
 app.use('/api/dashboard', DashboardRoutes);
+app.use('/api/report', ReportRoutes);
 
 const path = require("path");
 
