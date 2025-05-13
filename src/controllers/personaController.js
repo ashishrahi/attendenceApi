@@ -22,7 +22,8 @@ const createPersona = async (req, res) => {
       phone,
       address,
       dob,
-      shiftid 
+      shiftid,
+      breakid 
     } = req.body;
     const pool = await getConnection();
     console.log(req.body);
@@ -46,13 +47,14 @@ const createPersona = async (req, res) => {
     .input('address', sql.NVarChar, address)
     .input('dob', sql.Date, dob)
     .input('shiftid', sql.Int, shiftid)
+    .input('breakid', sql.Int, breakid)
       .query(`INSERT INTO [iDMS].[dbo].[d00_emptable]
 (userid, dept_id, desig_id, zone_id, ward_id, area_id, beat_id, gender_id,
  first_name, middle_name, last_name, father_name, mother_name,
- email, phone, address, dob, shiftid)
+ email, phone, address, dob, shiftid,breakid)
 VALUES (@userid, @dept_id, @desig_id, @zone_id, @ward_id, @area_id, @beat_id, @gender_id,
         @first_name, @middle_name, @last_name, @father_name, @mother_name,
-        @email, @phone, @address, @dob, @shiftid)
+        @email, @phone, @address, @dob, @shiftid,@breakid)
 `);
 
     res.json({
@@ -182,7 +184,8 @@ const updatePersona = async (req, res) => {
       phone,
       address,
       dob,
-      shiftid
+      shiftid,
+      breakid
     } = req.body;
     const pool = await getConnection();
 
@@ -211,6 +214,7 @@ const updatePersona = async (req, res) => {
       .input('address', sql.NVarChar, address)
       .input('dob', sql.Date, dob)
       .input('shiftid', sql.Int, shiftid)
+      .input('breakid', sql.Int, breakid)
       .query(`
       UPDATE [iDMS].[dbo].[d00_emptable]
       SET 
@@ -232,6 +236,7 @@ const updatePersona = async (req, res) => {
         address = @address,
         dob = @dob,
         shiftid = @shiftid
+        breakid = @breakid
       WHERE id = @id
     `);
 
