@@ -25,6 +25,7 @@ const handleMonthlyReport = async (req, res) => {
     const days = [];
     const dateMap = {};
     let dayIndex = 1;
+    
 
     while (start <= end) {
       const dateStr = start.format('YYYY-MM-DD');
@@ -97,28 +98,66 @@ const handleMonthlyReport = async (req, res) => {
       } : 'P';
     });
 
-    const reportData = employees.map(emp => {
-      const fullName = [emp.first_name, emp.middle_name, emp.last_name].filter(Boolean).join(' ');
-      const row = { userid: emp.userid, username: fullName };
+const reportData = employees.map(emp => {
+  const fullName = [emp.first_name, emp.middle_name, emp.last_name].filter(Boolean).join(' ');
+  const row = {
+    userid: emp.userid,
+    username: fullName,
+    S: 0,
+    H: 0,
+    P: 0,
+    A: 0,
+    EL: 0,
+    LC: 0
+  };
 
-      days.forEach(label => {
-        const date = dateMap[label];
-        const key = `${emp.userid}_${date}`;
-        const dayOfWeek = moment(date).day();
+  days.forEach(label => {
+    const date = dateMap[label];
+    const key = `${emp.userid}_${date}`;
+    const dayOfWeek = moment(date).day();
 
-        if (dayOfWeek === 0) {
-          row[label] = 'S'; // Sunday
-        } else if (holidays.includes(date)) {
-          row[label] = 'H'; // Holiday
-        } else if (attMap[key]) {
-          row[label] = mode === 'withtime' ? attMap[key] : 'P';
-        } else {
-          row[label] = 'A'; // Absent
+    if (dayOfWeek === 0) {
+      row[label] = 'S';
+      row.S += 1;
+    } else if (holidays.includes(date)) {
+      row[label] = 'H';
+      row.H += 1;
+    } else if (attMap[key]) {
+      const att = attMap[key];
+
+      if (mode === 'withtime' && typeof att === 'object') {
+        const inTime = att.FirstInTime;
+        const outTime = att.LastOutTime;
+
+        // ✅ Shift टाइमिंग निकालें (default दे सकते हैं या emp.shift से fetch कर सकते हैं)
+        const shiftIn = emp.shift_in_time || '09:30';    // HH:mm format
+        const shiftOut = emp.shift_out_time || '18:00';  // HH:mm format
+
+        // ✅ Late Come Check
+        if (inTime && moment(inTime, 'HH:mm').isAfter(moment(shiftIn, 'HH:mm'))) {
+          row.LC += 1;
         }
-      });
 
-      return row;
-    });
+        // ✅ Early Leave Check
+        if (outTime && moment(outTime, 'HH:mm').isBefore(moment(shiftOut, 'HH:mm'))) {
+          row.EL += 1;
+        }
+
+        row[label] = `${inTime}-${outTime}`;
+      } else {
+        row[label] = 'P';
+      }
+
+      row.P += 1;
+    } else {
+      row[label] = 'A';
+      row.A += 1;
+    }
+  });
+
+  return row;
+});
+
 
     // ✅ Return base64-encoded PDF
     if (type === 'pdf') {
