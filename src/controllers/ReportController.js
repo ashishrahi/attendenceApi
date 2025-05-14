@@ -56,7 +56,7 @@ const handleMonthlyReport = async (req, res) => {
               UserID,
               CAST(AttDateTime AS DATE) AS AttDate,
               MIN(CASE WHEN io_mode = 0 THEN AttDateTime END) AS FirstInTime,
-              MAX(CASE WHEN io_mode = 1 THEN AttDateTime END) AS LastOutTime,
+              MAX(CASE WHEN io_mode = 1  THEN AttDateTime END) AS LastOutTime,
               MAX(AttDateTime) AS LastPunch
             FROM UserAttendance
             WHERE CAST(AttDateTime AS DATE) BETWEEN @fromDate AND @toDate
@@ -133,6 +133,8 @@ const reportData = employees.map(emp => {
         const shiftIn = emp.shift_in_time || '09:30';    // HH:mm format
         const shiftOut = emp.shift_out_time || '18:00';  // HH:mm format
 
+        console.log("emp.shift_in_time",emp.shift_in_time)
+
         // ✅ Late Come Check
         if (inTime && moment(inTime, 'HH:mm').isAfter(moment(shiftIn, 'HH:mm'))) {
           row.LC += 1;
@@ -143,7 +145,7 @@ const reportData = employees.map(emp => {
           row.EL += 1;
         }
 
-        row[label] = `${inTime}-${outTime}`;
+        row[label] = mode === 'withtime' ? attMap[key] : 'P';
       } else {
         row[label] = 'P';
       }
@@ -856,179 +858,19 @@ const handlePunchReport = async (req, res) => {
   }
 };
 
-// const OutReports = async (req, res) => {  
-//   try {
-//     const pool = await getConnection();
-//     const { fromDate, toDate, employeeId, type } = req.body;
-
-//     // दिन की लिस्ट बनाओ — fromDate से toDate तक
-//     const start = moment(fromDate || new Date()).startOf('day');
-//     const end = moment(toDate || new Date()).endOf('day');
-//     const days = [];
-//     for (let m = moment(start); m.isSameOrBefore(end); m.add(1, 'days')) {
-//       days.push(m.format('YYYY-MM-DD'));
-//     }
-
-//     // कर्मचारी की लिस्ट निकालो
-//     const employeesQuery = `
-//       SELECT userid, CONCAT(first_name, ' ', ISNULL(middle_name, ''), ' ', last_name) AS empname 
-//       FROM d00_emptable
-//       ${employeeId && employeeId !== -1 ? `WHERE userid = '${employeeId}'` : ''}
-//     `;
-//     const employees = (await pool.request().query(employeesQuery)).recordset;
-
-//     // अटेंडेंस डेटा
-//     const attendanceQuery = `
-//       SELECT 
-//         ua.UserID, 
-//         CAST(ua.AttDateTime AS DATE) AS AttDate,
-//         MIN(CASE WHEN ua.io_mode = 0 THEN CONVERT(VARCHAR, ua.AttDateTime, 108) END) AS FirstInTime,
-//         MAX(CASE WHEN ua.io_mode = 1 THEN CONVERT(VARCHAR, ua.AttDateTime, 108) END) AS LastOutTime
-//       FROM UserAttendance ua
-//       WHERE ua.AttDateTime BETWEEN '${start.format('YYYY-MM-DD')}' AND '${end.format('YYYY-MM-DD')} 23:59:59'
-//       GROUP BY ua.UserID, CAST(ua.AttDateTime AS DATE)
-//     `;
-//     const attendanceData = (await pool.request().query(attendanceQuery)).recordset;
-
-//     // attendanceMap — key: userID_date
-//     const attendanceMap = {};
-//     attendanceData.forEach(row => {
-//       const key = `${row.UserID}_${moment(row.AttDate).format('YYYY-MM-DD')}`;
-//       attendanceMap[key] = {
-//         inTime: row.FirstInTime,
-//         outTime: row.LastOutTime
-//       };
-//     });
-
-//     // छुट्टियाँ निकालो
-//     const holidayQuery = `
-//       SELECT Date 
-//       FROM holiDaySchedule 
-//       WHERE Date BETWEEN '${start.format('YYYY-MM-DD')}' AND '${end.format('YYYY-MM-DD')}'
-//         AND IsActive = 1
-//     `;
-//     const holidayDates = new Set(
-//       (await pool.request().query(holidayQuery)).recordset.map(h => moment(h.Date).format('YYYY-MM-DD'))
-//     );
-
-//     // लंच पॉलिसी निकालो
-//     const lunchPolicyQuery = `SELECT UserID, LunchMinutes FROM LunchPolicy`;
-//     const lunchRows = (await pool.request().query(lunchPolicyQuery)).recordset;
-//     const lunchMap = {};
-//     lunchRows.forEach(row => {
-//       lunchMap[row.UserID] = row.LunchMinutes;
-//     });
-
-//     const result = [];
-
-//     // हर कर्मचारी के लिए हर दिन का रिकॉर्ड बनाओ
-//     employees.forEach(emp => {
-//       days.forEach(day => {
-//         const key = `${emp.userid}_${day}`;
-//         const att = attendanceMap[key];
-//         const dayOfWeek = moment(day).day();
-
-//         let status = 'A';
-//         let workingHours = '--';
-//         let totalMinutes = 0;
-//         let outHrs = 540; // 9 घंटे (9 * 60 मिनट)
-//         let hrsDiff = 0;
-//         let balanceHrs = '--';
-
-//         // रविवार
-//         if (dayOfWeek === 0) {
-//           status = 'S';
-//         }
-//         // छुट्टी
-//         else if (holidayDates.has(day)) {
-//           status = 'H';
-//         }
-//         // उपस्थित
-//         else if (att) {
-//           status = 'P';
-
-//           if (att.inTime && att.outTime) {
-//             const inTime = moment(att.inTime, 'HH:mm:ss');
-//             const outTime = moment(att.outTime, 'HH:mm:ss');
-//             const duration = moment.duration(outTime.diff(inTime));
-
-//             const totalAttMinutes = duration.asMinutes();
-//             const lunchMinutes = lunchMap[emp.userid] || 45;
-
-//             if (totalAttMinutes > lunchMinutes) {
-//               totalMinutes = totalAttMinutes - lunchMinutes;
-
-//               const hrs = Math.floor(totalMinutes / 60);
-//               const mins = Math.floor(totalMinutes % 60);
-//               workingHours = `${hrs}h ${mins}m`;
-
-//               hrsDiff = totalMinutes - outHrs;
-//               const diffHours = Math.floor(Math.abs(hrsDiff) / 60);
-//               const diffMinutes = Math.abs(hrsDiff) % 60;
-//               balanceHrs = `${hrsDiff >= 0 ? '+' : '-'}${diffHours}h ${diffMinutes}m`;
-//             } else {
-//               workingHours = '0h 0m';
-//               hrsDiff = -outHrs;
-//               balanceHrs = `-9h 0m`;
-//             }
-//           }
-//         }
-
-//         result.push({
-//           userid: emp.userid,
-//           empname: emp.empname.trim().replace(/\s+/g, ' '),
-//           date: day,
-//           status,
-//           FirstInTime: att?.inTime || '--',
-//           LastOutTime: att?.outTime || '--',
-//           workingHours,
-//           outHrs: '9h 0m',
-//           hrsDiff,
-//           balanceHrs,
-//           lunchMinutes: lunchMap[emp.userid] || 45
-//         });
-//       });
-//     });
-
-//     // PDF/Excel/JSON रिस्पॉन्स यहां वही रहेगा जैसा आपने पहले से लिखा है
-//     // बस उसमें नए फील्ड शामिल कर लो
-
-//     if (type === 'pdf' || type === 'excel') {
-//       // आपकी मौजूदा PDF और Excel logic में बस नए columns जोड़िए
-//     } else {
-//       res.status(200).json({
-//         isSuccess: true,
-//         message: 'Punching Report data retrieved',
-//         data: result
-//       });
-//     }
-//   } catch (error) {
-//     console.error('Punch Report Error:', error.message);
-//     res.status(500).json({
-//       isSuccess: false,
-//       message: `Error generating report: ${error.message}`,
-//       data: []
-//     });
-//   }
-// };
-
 function formatDurationToHHMMSS(duration, showNegativeAsZero = true) {
     if (!duration || typeof duration.asMilliseconds !== 'function') {
         return '--';
     }
-
     let ms = duration.asMilliseconds();
 
     if (ms < 0) {
         if (showNegativeAsZero) {
             return '00:00:00';
         }
-        // If not showing negative as zero, it implies it will be handled by formatSignedDurationToHHMMSS
-        // This function primarily aims for positive outputs or --
     }
     
-    // Ensure ms is not negative for calculations if it wasn't handled above
-    const nonNegativeMs = Math.max(0, ms);
+    const nonNegativeMs = Math.max(0, ms); // Ensures ms is not negative for calculations
 
     const totalSeconds = Math.round(nonNegativeMs / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -1038,7 +880,7 @@ function formatDurationToHHMMSS(duration, showNegativeAsZero = true) {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-// Helper function to format moment.duration to +/-HH:mm:ss or 00:00:00
+
 function formatSignedDurationForColumnE(duration, allottedDuration, actualBreakDuration) {
     if (!duration || typeof duration.asMilliseconds !== 'function' ||
         !allottedDuration || typeof allottedDuration.asMilliseconds !== 'function' ||
@@ -1047,10 +889,9 @@ function formatSignedDurationForColumnE(duration, allottedDuration, actualBreakD
     }
 
     if (actualBreakDuration.asMilliseconds() <= allottedDuration.asMilliseconds()) {
-        return '00:00:00'; // Or "0" if preferred string
+        return '00:00:00';
     } else {
-        // duration is (allotted - actual), so it's negative here
-        const ms = duration.asMilliseconds(); // Will be negative
+        const ms = duration.asMilliseconds(); // Will be negative here, as duration = allotted - actual
         const absTotalSeconds = Math.round(Math.abs(ms) / 1000);
         const hours = Math.floor(absTotalSeconds / 3600);
         const minutes = Math.floor((absTotalSeconds % 3600) / 60);
@@ -1072,16 +913,17 @@ const OutReports = async (req, res) => {
             days.push(m.format('YYYY-MM-DD'));
         }
 
+        // Corrected alias to lunch_duration_minutes
+        // Made employeeId filter robust for string/numeric '-1' and empty/null
         const employeesQuery = `
           SELECT userid, 
                  CONCAT(first_name, ' ', ISNULL(middle_name, ''), ' ', last_name) AS empname,
-                 45 AS breakid -- Changed this line
+                 45 AS lunch_duration_minutes 
           FROM d00_emptable
-          ${employeeId && employeeId !== '-1' && employeeId !== -1 ? `WHERE userid = '${employeeId}'` : ''}
+          ${employeeId && employeeId.toString() !== '-1' ? `WHERE userid = '${employeeId}'` : ''}
         `;
         const employees = (await pool.request().query(employeesQuery)).recordset;
 
-        // Fetch all punches for the date range and selected employees
         const attendanceQuery = `
           SELECT 
             ua.UserID, 
@@ -1089,21 +931,23 @@ const OutReports = async (req, res) => {
             ua.io_mode
           FROM UserAttendance ua
           WHERE ua.AttDateTime BETWEEN '${start.format('YYYY-MM-DD HH:mm:ss')}' AND '${end.format('YYYY-MM-DD HH:mm:ss')}'
-          ${employeeId && employeeId !== '-1' && employeeId !== -1 ? `AND ua.UserID = '${employeeId}'` : ''}
+          ${employeeId && employeeId.toString() !== '-1' ? `AND ua.UserID = '${employeeId}'` : ''}
           ORDER BY ua.UserID, ua.AttDateTime
         `;
         const attendanceData = (await pool.request().query(attendanceQuery)).recordset;
 
-        const attendanceMap = {}; // Key: UserID_YYYY-MM-DD, Value: { punches: [{dateTime: moment, io_mode: number}] }
+        const attendanceMap = {};
         attendanceData.forEach(row => {
             const dateStr = moment(row.AttDateTime).format('YYYY-MM-DD');
-            const key = `${row.UserID}_${dateStr}`;
+            // Ensure UserID is string and trimmed for key consistency
+            const userIdStr = String(row.UserID).trim(); 
+            const key = `${userIdStr}_${dateStr}`;
             if (!attendanceMap[key]) {
                 attendanceMap[key] = { punches: [] };
             }
             attendanceMap[key].punches.push({
-                dateTime: moment(row.AttDateTime), // Store as moment object
-                io_mode: row.io_mode
+                dateTime: moment(row.AttDateTime),
+                io_mode: parseInt(row.io_mode, 10) // Parse io_mode to integer
             });
         });
 
@@ -1120,54 +964,52 @@ const OutReports = async (req, res) => {
         const result = [];
 
         employees.forEach(emp => {
+            // Ensure emp.userid is string and trimmed for key consistency
+            const empIdStr = String(emp.userid).trim(); 
+
             days.forEach(day => {
-                const key = `${emp.userid}_${day}`;
+                const key = `${empIdStr}_${day}`;
                 const dailyAttendance = attendanceMap[key];
                 const dayOfWeek = moment(day).day(); // 0 for Sunday, 6 for Saturday
 
-                let status = 'A'; // Absent
+                let status = 'A';
                 let firstInTimeStr = '--';
                 let lastOutTimeStr = '--';
-                let hoursCStr = '--';      // Total duration on premises
-                let outHoursDStr = '--';   // Actual break time
-                let hourEStr = '--';       // +/- based on allotted lunch
-                let balanceHoursFStr = '--';// Final effective hours
+                let hoursCStr = '--';
+                let outHoursDStr = '--';
+                let hourEStr = '--';
+                let balanceHoursFStr = '--';
 
+                // emp.lunch_duration_minutes is now correctly sourced from employeesQuery
                 const allottedLunchMinutes = parseInt(emp.lunch_duration_minutes, 10) || 45;
                 const allottedLunchDuration = moment.duration(allottedLunchMinutes, 'minutes');
 
-                if (dayOfWeek === 0) { // Assuming Sunday is off
-                    status = 'S'; // Sunday
+                if (dayOfWeek === 0) {
+                    status = 'S';
                 } else if (holidayDates.has(day)) {
-                    status = 'H'; // Holiday
-                } else if (dailyAttendance && dailyAttendance.punches.length > 0) {
+                    status = 'H';
+                } else if (dailyAttendance && dailyAttendance.punches && dailyAttendance.punches.length > 0) {
                     const punches = dailyAttendance.punches;
-
-                    // Ensure punches are sorted (though SQL query should handle it)
-                    punches.sort((a, b) => a.dateTime.valueOf() - b.dateTime.valueOf());
+                    // Punches are already sorted by SQL query (ORDER BY ua.AttDateTime)
 
                     const firstPunch = punches[0];
                     const lastPunch = punches[punches.length - 1];
 
-                    // Valid attendance requires at least one IN (0) and one OUT (1)
-                    // and first punch must be IN, last punch must be OUT
+                    // io_mode is now an integer due to parseInt()
                     if (punches.length >= 2 && firstPunch.io_mode === 0 && lastPunch.io_mode === 1) {
-                        status = 'P'; // Present
+                        status = 'P';
                         const firstInTime = firstPunch.dateTime;
                         const lastOutTime = lastPunch.dateTime;
 
                         firstInTimeStr = firstInTime.format('HH:mm:ss');
                         lastOutTimeStr = lastOutTime.format('HH:mm:ss');
 
-                        // Hours (C): Total duration from First IN to Last OUT
                         const hoursCDuration = moment.duration(lastOutTime.diff(firstInTime));
                         hoursCStr = formatDurationToHHMMSS(hoursCDuration);
 
-                        // Out Hours (D): Calculate actual break time
                         let actualBreakDuration = moment.duration(0);
                         for (let i = 0; i < punches.length - 1; i++) {
-                            // A break is an OUT punch followed by an IN punch
-                            if (punches[i].io_mode === 1 && punches[i+1].io_mode === 0) {
+                            if (punches[i].io_mode === 1 && punches[i+1].io_mode === 0) { // OUT punch followed by IN punch
                                 const breakStart = punches[i].dateTime;
                                 const breakEnd = punches[i+1].dateTime;
                                 if (breakEnd.isAfter(breakStart)) {
@@ -1176,56 +1018,48 @@ const OutReports = async (req, res) => {
                             }
                         }
                         outHoursDStr = formatDurationToHHMMSS(actualBreakDuration);
-
-                        // Hour(+/-) E=(AllottedLunch-D)
-                        // This is (Allotted Lunch Time) - (Actual Break Time)
+                        
                         const differenceDurationE = allottedLunchDuration.clone().subtract(actualBreakDuration);
                         hourEStr = formatSignedDurationForColumnE(differenceDurationE, allottedLunchDuration, actualBreakDuration);
                         
-                        // Balance Hours (F)
                         let balanceHoursFDuration;
                         if (actualBreakDuration.asMilliseconds() <= allottedLunchDuration.asMilliseconds()) {
                             balanceHoursFDuration = hoursCDuration.clone();
                         } else {
-                            // Deduct only the excess break time from Hours (C)
                             const excessBreakDuration = actualBreakDuration.clone().subtract(allottedLunchDuration);
                             balanceHoursFDuration = hoursCDuration.clone().subtract(excessBreakDuration);
                         }
-                        // Balance hours should not be negative
                         if (balanceHoursFDuration.asMilliseconds() < 0) {
                             balanceHoursFDuration = moment.duration(0);
                         }
                         balanceHoursFStr = formatDurationToHHMMSS(balanceHoursFDuration);
 
                     } else {
-                        status = 'M'; // Missed punch or invalid data
-                        // Keep time strings as '--'
+                        status = 'M'; // Missed punch or invalid sequence
                     }
                 }
+                // If not S, H, P, or M, status remains 'A' (e.g., no punches for the day)
 
                 result.push({
-                    userid: emp.userid,
+                    userid: emp.userid, // Original userid for the report
                     empname: emp.empname.trim().replace(/\s+/g, ' '),
-                    date: moment(day).format('DD-MMM-YYYY'), // Format date as in image
+                    date: moment(day).format('DD-MMM-YYYY'),
                     status,
-                    FirstInTime: firstInTimeStr, // (A)
-                    LastOutTime: lastOutTimeStr, // (B)
-                    Hours_C: hoursCStr,          // (C)
-                    OutHours_D: outHoursDStr,      // (D)
-                    Hour_E: hourEStr,            // (E)
-                    BalanceHours_F: balanceHoursFStr,// (F)
-                    attendanceFrom: 'BioMetric' // As per image
+                    FirstInTime: firstInTimeStr,
+                    LastOutTime: lastOutTimeStr,
+                    Hours_C: hoursCStr,
+                    OutHours_D: outHoursDStr,
+                    Hour_E: hourEStr,
+                    BalanceHours_F: balanceHoursFStr,
+                    attendanceFrom: 'BioMetric'
                 });
             });
         });
         
-        // PDF and Excel export logic remains largely the same,
-        // but column definitions and data mapping need to be updated.
-
+        // PDF and Excel export logic (remains the same)
         if (type === 'pdf') {
-            const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' }); // Landscape might be better
+            const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' });
             const buffers = [];
-
             doc.on('data', buffers.push.bind(buffers));
             doc.on('end', () => {
                 const pdfData = Buffer.concat(buffers);
@@ -1237,7 +1071,7 @@ const OutReports = async (req, res) => {
                 });
             });
 
-            doc.fillColor('#0A5275').fontSize(16).font('Helvetica-Bold').text('Daily Performance Report', { align: 'center' }); // Title updated
+            doc.fillColor('#0A5275').fontSize(16).font('Helvetica-Bold').text('Daily Performance Report', { align: 'center' });
             doc.moveDown(0.3);
             doc.fillColor('black').fontSize(10).text(`From: ${moment(start).format('DD-MMM-YYYY')} To: ${moment(end).format('DD-MMM-YYYY')}`, { align: 'center' });
             doc.moveDown(1);
@@ -1250,24 +1084,17 @@ const OutReports = async (req, res) => {
                 { label: 'Out Time (B)', key: 'LastOutTime', width: 60, align: 'center' },
                 { label: 'Hours (C)', key: 'Hours_C', width: 60, align: 'center' },
                 { label: 'Out Hours (D)', key: 'OutHours_D', width: 65, align: 'center' },
-                { label: 'Hour(+/-) E', key: 'Hour_E', width: 65, align: 'center' }, // Label adjusted
-                { label: 'Balance Hours F', key: 'BalanceHours_F', width: 70, align: 'center' }, // Label adjusted
+                { label: 'Hour(+/-) E', key: 'Hour_E', width: 65, align: 'center' },
+                { label: 'Balance Hours F', key: 'BalanceHours_F', width: 70, align: 'center' },
                 { label: 'Attendance From', key: 'attendanceFrom', width: 80, align: 'left' }
-                // Removed Status, can be added if needed
             ];
-             // Calculate dynamic width for landscape A4 (approx 841.89 pts width, 595.28 height)
             const pageMargin = 30;
             const availableWidth = 841.89 - (2 * pageMargin);
             let tableWidth = pdfColumns.reduce((sum, col) => sum + col.width, 0);
-            
-            // If tableWidth is too large, you might need to scale widths or use fewer columns
-            // For now, let's center it if it's smaller than availableWidth
             let x = (availableWidth - tableWidth) / 2 + pageMargin;
-            if (x < pageMargin) x = pageMargin; // Ensure it doesn't go off-page
-
+            if (x < pageMargin) x = pageMargin;
             let y = doc.y;
 
-            // Draw Header
             doc.font('Helvetica-Bold').fontSize(8);
             pdfColumns.forEach(col => {
                 doc.rect(x, y, col.width, 20).fillAndStroke('#D6EAF8', '#000').fillColor('black');
@@ -1276,16 +1103,13 @@ const OutReports = async (req, res) => {
             });
             y += 20;
 
-            // Draw Rows
             doc.font('Helvetica').fontSize(7);
             result.forEach((row, index) => {
-                x = (availableWidth - tableWidth) / 2 + pageMargin; // Reset x for each row
+                x = (availableWidth - tableWidth) / 2 + pageMargin;
                  if (x < pageMargin) x = pageMargin;
-
-                if (y > 550) { // Check for page break (A4 landscape height is ~595, minus margins)
+                if (y > 550) {
                     doc.addPage({ margin: 30, size: 'A4', layout: 'landscape' });
-                    y = pageMargin; // Start Y from margin (pdfkit handles header if you make a function)
-                     // Re-draw Header on new page
+                    y = pageMargin;
                     let headerX = (availableWidth - tableWidth) / 2 + pageMargin;
                     if (headerX < pageMargin) headerX = pageMargin;
                     doc.font('Helvetica-Bold').fontSize(8);
@@ -1297,9 +1121,7 @@ const OutReports = async (req, res) => {
                     y += 20;
                     doc.font('Helvetica').fontSize(7);
                 }
-                
                 const rowData = { ...row, sno: index + 1 };
-
                 pdfColumns.forEach(col => {
                     doc.rect(x, y, col.width, 18).stroke();
                     doc.fillColor('black').text(rowData[col.key]?.toString() || '--', x + 3, y + 5, { width: col.width - 6, align: col.align || 'left' });
@@ -1307,18 +1129,16 @@ const OutReports = async (req, res) => {
                 });
                 y += 18;
             });
-
             doc.end();
 
         } else if (type === 'excel') {
             const workbook = new ExcelJS.Workbook();
             const sheet = workbook.addWorksheet('Daily Performance Report');
-
             const excelHeaders = [
                 { header: 'S.No.', key: 'sno', width: 8 },
                 { header: 'Employee', key: 'empname', width: 25 },
                 { header: 'Date', key: 'date', width: 15 },
-                { header: 'Status', key: 'status', width: 10 }, // Added Status for Excel
+                { header: 'Status', key: 'status', width: 10 },
                 { header: 'In Time (A)', key: 'FirstInTime', width: 12 },
                 { header: 'Out Time (B)', key: 'LastOutTime', width: 12 },
                 { header: 'Hours (C)', key: 'Hours_C', width: 12 },
@@ -1328,36 +1148,14 @@ const OutReports = async (req, res) => {
                 { header: 'Attendance From', key: 'attendanceFrom', width: 18 }
             ];
             sheet.columns = excelHeaders;
-
-            // Add header row and apply styles
-            sheet.getRow(1).eachCell((cell, colNumber) => {
-                cell.font = { bold: true, color: { argb: 'FFFFFF' } }; // White text
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: '0A5275' } // Dark blue background
-                };
+            sheet.getRow(1).eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '0A5275' } };
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                cell.border = {
-                    top: { style: 'thin' }, left: { style: 'thin' },
-                    bottom: { style: 'thin' }, right: { style: 'thin' }
-                };
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
             });
-            
             result.forEach((row, index) => {
-                const rowData = {
-                    sno: index + 1,
-                    empname: row.empname,
-                    date: row.date,
-                    status: row.status,
-                    FirstInTime: row.FirstInTime,
-                    LastOutTime: row.LastOutTime,
-                    Hours_C: row.Hours_C,
-                    OutHours_D: row.OutHours_D,
-                    Hour_E: row.Hour_E,
-                    BalanceHours_F: row.BalanceHours_F,
-                    attendanceFrom: row.attendanceFrom
-                };
+                const rowData = { sno: index + 1, ...row };
                 const insertedRow = sheet.addRow(rowData);
                 insertedRow.eachCell((cell, colNumber) => {
                     const columnKey = excelHeaders[colNumber - 1].key;
@@ -1366,16 +1164,11 @@ const OutReports = async (req, res) => {
                         align = 'center';
                     }
                     cell.alignment = { horizontal: align, vertical: 'middle' };
-                    cell.border = {
-                        top: { style: 'thin' }, left: { style: 'thin' },
-                        bottom: { style: 'thin' }, right: { style: 'thin' }
-                    };
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 });
             });
-
             const buffer = await workbook.xlsx.writeBuffer();
             const base64Excel = buffer.toString('base64');
-
             res.status(200).json({
                 isSuccess: true,
                 message: 'Report Excel generated successfully',
@@ -1390,7 +1183,7 @@ const OutReports = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('OutReports Error:', error.message, error.stack);
+        console.error('OutReports Error:', error.message, error.stack); // Log stack for better debugging
         res.status(500).json({
             isSuccess: false,
             message: `Error generating report: ${error.message}`,
