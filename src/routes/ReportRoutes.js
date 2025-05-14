@@ -21,6 +21,7 @@ const ReportController = require('../controllers/ReportController')
 router.post('/daily', ReportController.handleDailyReport);
 router.post('/montly', ReportController.handleMonthlyReport);
 router.post('/punch', ReportController.handlePunchReport);
+router.post('/out', ReportController.OutReports);
 
 
 module.exports = router;
