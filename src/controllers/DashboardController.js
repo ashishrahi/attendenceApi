@@ -9,13 +9,13 @@ const Dasboarddata = async (req, res) => {
     if (type === 1) {
       const totalEmpQuery = await pool.request()
         .query(`SELECT COUNT(*) AS total_employees FROM d00_emptable`);
-    
+
       const presentEmpQuery = await pool.request()
         .query(`SELECT COUNT(DISTINCT e.userid) AS present_employees
                 FROM [UserAttendance] ua
                 JOIN d00_emptable e ON ua.UserID = e.userid
                 WHERE CONVERT(date, ua.AttDateTime) = CONVERT(date, GETDATE())`);
-    
+
       const lateEmpQuery = await pool.request()
         .query(`
           SELECT COUNT(*) AS late_count
@@ -32,7 +32,7 @@ const Dasboarddata = async (req, res) => {
           WHERE ua_summary.FirstInTime > 
                 CAST(CONVERT(varchar, GETDATE(), 23) + ' ' + CONVERT(varchar, s.intime, 108) AS datetime)
         `);
-    
+
       const earlyEmpQuery = await pool.request()
         .query(`
           SELECT COUNT(*) AS early_count
@@ -61,13 +61,13 @@ const Dasboarddata = async (req, res) => {
                 CAST(CONVERT(varchar, GETDATE(), 23) + ' ' + CONVERT(varchar, s.outtime, 108) AS datetime)
             AND ua_summary.LastPunchMode = 1
         `);
-    
+
       const total = totalEmpQuery.recordset[0].total_employees;
       const present = presentEmpQuery.recordset[0].present_employees;
       const absent = total - present;
       const late = lateEmpQuery.recordset[0].late_count;
       const early = earlyEmpQuery.recordset[0].early_count;
-    
+
       return res.json({
         success: true,
         message: 'count Retrieved',
@@ -80,7 +80,7 @@ const Dasboarddata = async (req, res) => {
         }
       });
     }
-    
+
 
     // Type 2: All employee details
     if (type === 2) {
@@ -214,14 +214,14 @@ const Dasboarddata = async (req, res) => {
                 CAST(CONVERT(varchar, GETDATE(), 23) + ' ' + CONVERT(varchar, s.outtime, 108) AS datetime)
             AND ua_summary.LastPunchMode = 1;
       `);
-    
+
       return res.json({
         success: true,
         message: 'Early leavers retrieved',
         data: earlyLeaversQuery.recordset
       });
     }
-    
+
     if (type === 6) {
       const Latecomerquery = await pool.request()
         .query(`
@@ -255,15 +255,48 @@ const Dasboarddata = async (req, res) => {
 
 
         `);
-    
+
       return res.json({
         success: true,
         message: 'late comer retrieved',
         data: Latecomerquery.recordset
       });
     }
-    
-    
+    // Type 7: Weekly present employee count (excluding Sundays)
+    if (type === 7) {
+      const weeklyPresentQuery = await pool.request().query(`
+        ;WITH LastDays AS (
+          SELECT CAST(GETDATE() AS DATE) AS DayDate
+          UNION ALL
+          SELECT DATEADD(DAY, -1, DayDate)
+          FROM LastDays
+          WHERE DATEADD(DAY, -1, DayDate) >= DATEADD(DAY, -13, CAST(GETDATE() AS DATE)) -- check up to last 14 days to get 7 working days
+        ),
+        FilteredDays AS (
+          SELECT TOP 7 DayDate
+          FROM LastDays
+          WHERE DATEPART(WEEKDAY, DayDate) != 1 -- 1 = Sunday in SQL Server's default config
+          ORDER BY DayDate DESC
+        )
+        SELECT 
+          DATENAME(weekday, F.DayDate) AS DayName,
+          F.DayDate AS AttDate,
+          ISNULL(COUNT(DISTINCT ua.UserID), 0) AS PresentCount
+        FROM FilteredDays F
+        LEFT JOIN UserAttendance ua 
+          ON CAST(ua.AttDateTime AS DATE) = F.DayDate
+        GROUP BY F.DayDate
+        ORDER BY F.DayDate
+        OPTION (MAXRECURSION 14);
+      `);
+
+      return res.json({
+        success: true,
+        message: 'Weekly present employee data retrieved',
+        data: weeklyPresentQuery.recordset
+      });
+    }
+
 
     // Default: Invalid type
     return res.status(400).json({
