@@ -14,6 +14,7 @@ const WardRoutes = require('./routes/WardRoutes');
 const AreaRoutes = require('./routes/AreaRoutes');
 const BeatRoutes = require('./routes/BeatRoutes');
 const GenderRoutes = require('./routes/GenderRoutes');
+const DeviceRoutes = require('./routes/DeviceRoutes');
 const RoleRoutes = require('./routes/RoleRoutes');
 const DashboardRoutes = require('./routes/DashboardRoutes');
 const ShiftRoutes = require('./routes/ShiftRoutes');
@@ -52,6 +53,7 @@ app.use('/api/ward', WardRoutes);
 app.use('/api/area', AreaRoutes);
 app.use('/api/beat', BeatRoutes);
 app.use('/api/gender', GenderRoutes);
+app.use('/api/device', DeviceRoutes);
 app.use('/api/role', RoleRoutes);
 app.use('/api/dashboard', DashboardRoutes);
 app.use('/api/report', ReportRoutes);
@@ -65,19 +67,19 @@ const swaggerFilePath = process.env.NODE_ENV === "production"
 const swaggerFile = require(swaggerFilePath);
 
 app.use("/app", swaggerUi.serve, swaggerUi.setup(swaggerFile));
-// app.use((err, req, res, next) => {
-//   console.error(err.stack);
-//   res.status(500).json({
-//     success: false,
-//     message: 'Something went wrong!',
-//     error: process.env.NODE_ENV === 'development' ? err.message : undefined
-//   });
-// });
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
 
 
 
 const PORT = process.env.PORT || 5000;
-const HOST = '192.168.1.36';  // To listen on all network interfaces (external access)
+const HOST = '192.168.1.43';  // To listen on all network interfaces (external access)
 
 app.listen(PORT, HOST, () => {
   console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);

@@ -7,9 +7,21 @@ const path = require('path');
 const ExcelJS = require('exceljs');
 
 const fetchEmployees = async (pool, employeeId) => {
-  let query = `SELECT userid, first_name ,
-middle_name ,last_name FROM d00_emptable`;
-  if (employeeId) query += ` WHERE userid = '${employeeId}'`;
+  let query = `SELECT 
+    e.userid, 
+    e.first_name, 
+    e.middle_name, 
+    e.last_name, 
+    e.shiftid,
+    s.shiftname,       
+    s.intime, 
+    s.outtime    
+FROM 
+    d00_emptable e
+JOIN 
+    shift_master s ON e.shiftid = s.id
+`;
+  if (employeeId) query += ` WHERE e.userid = '${employeeId}'`;
   const result = await pool.request().query(query);
   return result.recordset;
 };
@@ -39,7 +51,6 @@ const handleMonthlyReport = async (req, res) => {
     const employees = await fetchEmployees(pool, employeeId);
 
     let attendanceData = [];
-    if (mode === 'withtime') {
       const result = await pool.request()
         .input('fromDate', fromDate)
         .input('toDate', toDate)
@@ -64,17 +75,8 @@ const handleMonthlyReport = async (req, res) => {
           ) ua_summary ON e.userid = ua_summary.UserID
         `);
       attendanceData = result.recordset;
-    } else {
-      const result = await pool.request()
-        .input('fromDate', fromDate)
-        .input('toDate', toDate)
-        .query(`
-          SELECT UserID, AttDateTime, io_mode 
-          FROM UserAttendance 
-          WHERE CAST(AttDateTime AS DATE) BETWEEN @fromDate AND @toDate
-        `);
-      attendanceData = result.recordset;
-    }
+    
+    
 
     const holidayQuery = await pool.request()
       .input('fromDate', fromDate)
@@ -91,11 +93,11 @@ const handleMonthlyReport = async (req, res) => {
     attendanceData.forEach(row => {
       const date = moment.utc(row.AttDateTime || row.AttDate).format('YYYY-MM-DD');
       const key = `${row.UserID || row.userid}_${date}`;
-      attMap[key] = mode === 'withtime' ? {
-        FirstInTime: row.FirstInTime ? moment(row.FirstInTime).format('HH:mm') : '',
-        LastOutTime: row.LastOutTime ? moment(row.LastOutTime).format('HH:mm') : '',
-        LastPunch: row.LastPunch ? moment(row.LastPunch).format('HH:mm') : ''
-      } : 'P';
+      attMap[key] = {
+        FirstInTime: row.FirstInTime ? moment.utc(row.FirstInTime).format('HH:mm') : '',
+        LastOutTime: row.LastOutTime ? moment.utc(row.LastOutTime).format('HH:mm') : '',
+        LastPunch: row.LastPunch ? moment.utc(row.LastPunch).format('HH:mm') : ''
+      }  ;
     });
 
 const reportData = employees.map(emp => {
@@ -125,23 +127,29 @@ const reportData = employees.map(emp => {
     } else if (attMap[key]) {
       const att = attMap[key];
 
-      if (mode === 'withtime' && typeof att === 'object') {
+      if ( typeof att === 'object') {
         const inTime = att.FirstInTime;
         const outTime = att.LastOutTime;
+        const LastPunchu = att.LastPunch;
+        console.log(att)
 
-        // ✅ Shift टाइमिंग निकालें (default दे सकते हैं या emp.shift से fetch कर सकते हैं)
-        const shiftIn = emp.shift_in_time || '09:30';    // HH:mm format
-        const shiftOut = emp.shift_out_time || '18:00';  // HH:mm format
+        const shiftIn = emp.intime ;   
+        const shiftOut = emp.outtime ;  
 
-        console.log("emp.shift_in_time",emp.shift_in_time)
 
-        // ✅ Late Come Check
-        if (inTime && moment(inTime, 'HH:mm').isAfter(moment(shiftIn, 'HH:mm'))) {
+        const hhintime     = moment.utc(inTime, "HH:mm").format("HH:mm"),
+        hhouttime    = moment.utc(outTime, "HH:mm").format("HH:mm"),
+        hhshiftin    = moment.utc(shiftIn, "HH:mm").format("HH:mm"),
+        hhshiftout   = moment.utc(shiftOut, "HH:mm").format("HH:mm"),
+        hhlastpunch  = moment.utc(LastPunchu, "HH:mm").format("HH:mm");
+  
+       
+        if (hhintime && hhintime > hhshiftin) {
           row.LC += 1;
         }
-
-        // ✅ Early Leave Check
-        if (outTime && moment(outTime, 'HH:mm').isBefore(moment(shiftOut, 'HH:mm'))) {
+        
+        
+        if (hhlastpunch  && (hhouttime == hhlastpunch) && hhouttime < hhshiftout) {
           row.EL += 1;
         }
 
@@ -382,20 +390,20 @@ const handleDailyReport = async (req, res) => {
     const attendanceQuery = `
       SELECT 
         ua.UserID, 
-        MIN(CASE WHEN ua.io_mode = 0 THEN CONVERT(VARCHAR, ua.AttDateTime, 108) END) AS FirstInTime,
-        MAX(CASE WHEN ua.io_mode = 1 THEN CONVERT(VARCHAR, ua.AttDateTime, 108) END) AS LastOutTime
+        ua.AttDateTime, 
+        ua.io_mode 
       FROM UserAttendance ua
       WHERE CAST(ua.AttDateTime AS DATE) = '${day}'
-      GROUP BY ua.UserID
+      ORDER BY ua.UserID, ua.AttDateTime
     `;
     const attendanceData = (await pool.request().query(attendanceQuery)).recordset;
-
+    console.log("attendanceData",attendanceData)
     const attendanceMap = {};
+
     attendanceData.forEach(row => {
-      attendanceMap[row.UserID] = {
-        inTime: row.FirstInTime,
-        outTime: row.LastOutTime
-      };
+      const { UserID, AttDateTime, io_mode } = row;
+      if (!attendanceMap[UserID]) attendanceMap[UserID] = [];
+      attendanceMap[UserID].push({ time: moment(AttDateTime), mode: io_mode });
     });
 
     const holidayQuery = `
@@ -406,45 +414,75 @@ const handleDailyReport = async (req, res) => {
     const isHoliday = (await pool.request().query(holidayQuery)).recordset.length > 0;
     const isSunday = moment(day).day() === 0;
 
-    const days = [day];
     const result = [];
 
     employees.forEach(emp => {
-      const att = attendanceMap[emp.userid];
+      const logs = attendanceMap[emp.userid] || [];
       let status = 'A';
-      let workingHours = null;
+      let FirstInTime = null;
+      let LastOutTime = null;
+      let lastpunch = null;
+      let totalMinutes = 0;
 
-      if (att?.inTime && att?.outTime) {
-        const inTime = moment(att.inTime, 'HH:mm:ss');
-        const outTime = moment(att.outTime, 'HH:mm:ss');
-        const duration = moment.duration(outTime.diff(inTime));
-        workingHours = `${duration.hours()}h ${duration.minutes()}m`;
+      if (logs.length > 0) {
+        status = 'P';
+        console.log("logs.length ",logs );
+        lastpunch = moment.utc(logs[logs.length -1].time).format("HH:mm:ss");
+        
+
+        const inOutPairs = [];
+        for (let i = 0; i < logs.length - 1; i++) {
+          if (logs[i].mode == 0 && logs[i + 1].mode == 1) {
+            console.log("([logs[i].time, logs[i + 1].time])",([logs[i].time, logs[i + 1].time]));
+            
+            inOutPairs.push([logs[i].time, logs[i + 1].time]);
+            i++;
+          }
+        }
+        console.log("inOutPairs",inOutPairs);
+        
+
+        if (inOutPairs.length > 0) {
+          totalMinutes = inOutPairs.reduce((acc, [inT, outT]) => acc + outT.diff(inT, 'minutes'), 0);
+          FirstInTime = moment.utc(inOutPairs[0][0]).format('HH:mm:ss');
+          LastOutTime = moment.utc(inOutPairs[inOutPairs.length - 1][1]).format('HH:mm:ss');
+        }
       }
 
-      days.forEach(d => {
-        const dayOfWeek = moment(d).day();
-
-        if (dayOfWeek === 0) {
-          status = 'S';
-        } else if (isHoliday) {
-          status = 'H';
-        } else if (att) {
-          status = 'P';
-        }
-
-        result.push({
-          userid: emp.userid,
-          empname: emp.empname.trim().replace(/\s+/g, ' '),
-          date: d,
-          status,
-          FirstInTime: att?.inTime || null,
-          LastOutTime: att?.outTime || null,
-          workingHours
-        });
+      if (isSunday) status = 'S';
+      else if (isHoliday) status = 'H';
+      else if (logs.length === 0) status = 'A';
+      console.log("totalMinutes",totalMinutes)
+      const workingHours = totalMinutes
+        ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`
+        : null;
+      console.log(workingHours)
+      result.push({
+        userid: emp.userid,
+        empname: emp.empname.trim().replace(/\s+/g, ' '),
+        date: day,
+        status,
+        FirstInTime: FirstInTime || '--',
+        LastOutTime: LastOutTime || '--',
+        workingHours: workingHours || '--',
+        lastpunch: lastpunch || '--'
       });
     });
+    
+    if(type === 'totalpunch'){
 
-    // ✅ PDF output
+      const totalPunch = employeeId == '-1'
+      ? attendanceData
+      : attendanceData.filter(record => record.UserID == employeeId);
+  
+    return res.status(200).json({
+      isSuccess: true,
+      message: 'Total Punch',
+      data: totalPunch
+    });
+    }
+
+    // PDF Export
     if (type === 'pdf') {
       const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'portrait' });
       const buffers = [];
@@ -476,10 +514,9 @@ const handleDailyReport = async (req, res) => {
       ];
 
       const tableWidth = columns.reduce((acc, col) => acc + col.width, 0);
-      let x = (595.28 - tableWidth) / 2; // Center horizontally on A4 width
+      let x = (595.28 - tableWidth) / 2;
       let y = doc.y;
 
-      // Header
       doc.font('Helvetica-Bold').fontSize(9);
       columns.forEach((col, i) => {
         doc.rect(x, y, col.width, 25).fillAndStroke('#D6EAF8', '#000').fillColor('black');
@@ -490,7 +527,6 @@ const handleDailyReport = async (req, res) => {
 
       y += 25;
 
-      // Rows
       doc.font('Helvetica').fontSize(8);
       result.forEach(row => {
         x = (595.28 - tableWidth) / 2;
@@ -503,15 +539,14 @@ const handleDailyReport = async (req, res) => {
           row.userid.toString(),
           row.empname,
           row.status,
-          row.FirstInTime || '--',
-          row.LastOutTime || '--',
-          row.workingHours || '--'
+          row.FirstInTime,
+          row.LastOutTime,
+          row.workingHours
         ];
 
         rowData.forEach((text, i) => {
           const col = columns[i];
           doc.rect(x, y, col.width, 20).stroke();
-
           const align = i === 0 ? 'right' : 'left';
           doc.text(text, x + 5, y + 6, { width: col.width - 10, align });
           x += col.width;
@@ -522,25 +557,24 @@ const handleDailyReport = async (req, res) => {
 
       doc.end();
     }
+
+    // Excel Export
     else if (type === 'excel') {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Daily Attendance Report', {
         pageSetup: { paperSize: 9, orientation: 'portrait' }
       });
 
-      // Title
       worksheet.mergeCells('A1:F1');
       worksheet.getCell('A1').value = 'Daily Attendance Report';
       worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
       worksheet.getCell('A1').font = { bold: true, size: 14 };
 
-      // Date
       worksheet.mergeCells('A2:F2');
       worksheet.getCell('A2').value = `Date: ${day}`;
       worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
       worksheet.getCell('A2').font = { size: 10 };
 
-      // Table Header
       const columns = [
         { header: 'UserID', width: 10, alignment: 'right' },
         { header: 'Name', width: 20, alignment: 'left' },
@@ -557,15 +591,14 @@ const handleDailyReport = async (req, res) => {
         worksheet.getCell(3, idx + 1).font = { bold: true };
       });
 
-      // Data Rows
       result.forEach((row, index) => {
         worksheet.addRow([
           row.userid.toString(),
           row.empname,
           row.status,
-          row.FirstInTime || '--',
-          row.LastOutTime || '--',
-          row.workingHours || '--'
+          row.FirstInTime,
+          row.LastOutTime,
+          row.workingHours
         ]);
 
         const rowIndex = index + 4;
@@ -575,26 +608,24 @@ const handleDailyReport = async (req, res) => {
         });
       });
 
-      // Convert to Buffer
       const buffer = await workbook.xlsx.writeBuffer();
-
-      // Convert buffer to Base64
       const base64Excel = buffer.toString('base64');
 
-      // Send Base64 response
       res.status(200).json({
         isSuccess: true,
         message: 'Excel report generated successfully',
         base64: base64Excel
       });
-    } else {
+    }
+
+    // Default JSON Response
+    else {
       res.status(200).json({
         isSuccess: true,
-        message: 'Daily report with In/Out time and working hours fetched successfully',
+        message: 'Daily report with all punch points and working hours calculated successfully',
         data: result
       });
     }
-
   } catch (error) {
     console.error('Daily Report Error:', error.message);
     res.status(500).json({
