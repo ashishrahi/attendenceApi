@@ -19,6 +19,7 @@ const getGender = async (req, res) => {
         console.log(result);
         // const { IsSuccess, Message } = result.recordsets[0][0];
         const area = result.recordset;
+        
 
         res.json({
             success: true,

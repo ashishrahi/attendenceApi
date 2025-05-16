@@ -20,6 +20,7 @@ const DashboardRoutes = require('./routes/DashboardRoutes');
 const ShiftRoutes = require('./routes/ShiftRoutes');
 const ReportRoutes = require('./routes/ReportRoutes');
 const HoliDayRoutes = require('./routes/HoliDayRoutes');
+const BreakRoutes = require('./routes/BreakRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -56,34 +57,35 @@ app.use('/api/gender', GenderRoutes);
 app.use('/api/device', DeviceRoutes);
 app.use('/api/role', RoleRoutes);
 app.use('/api/dashboard', DashboardRoutes);
+app.use('/api/break', BreakRoutes);
 app.use('/api/report', ReportRoutes);
 
-const path = require("path");
+// const path = require("path");
 
-const swaggerFilePath = process.env.NODE_ENV === "production"
-  ? path.join(__dirname, "./swagger-output.json")
-  : path.join(__dirname, "./swagger-output.json"); 
+// const swaggerFilePath = process.env.NODE_ENV === "production"
+//   ? path.join(__dirname, "./swagger-output.json")
+//   : path.join(__dirname, "./swagger-output.json"); 
 
-const swaggerFile = require(swaggerFilePath);
+// const swaggerFile = require(swaggerFilePath);
 
-app.use("/app", swaggerUi.serve, swaggerUi.setup(swaggerFile));
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
+// app.use("/app", swaggerUi.serve, swaggerUi.setup(swaggerFile));
+// app.use((err, req, res, next) => {
+//   console.error(err.stack);
+//   res.status(500).json({
+//     success: false,
+//     message: 'Something went wrong!',
+//     error: process.env.NODE_ENV === 'development' ? err.message : undefined
+//   });
+// });
 
 
 
 const PORT = process.env.PORT || 5000;
 const HOST = '192.168.1.43';  // To listen on all network interfaces (external access)
 
-app.listen(PORT, HOST, () => {
-  console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
-});
+// app.listen(PORT, HOST, () => {
+//   console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
+// });
 
 
 // const PORT = process.env.PORT || 5000;
