@@ -45,7 +45,6 @@ const createHoliday = async (req, res) => {
 };
 
 
-
 // Update Holiday
 const updateHoliday = async (req, res) => {
   try {
@@ -94,7 +93,6 @@ const updateHoliday = async (req, res) => {
     });
   }
 };
-
 
 // Get All Holidays
 const getHolidays = async (req, res) => {

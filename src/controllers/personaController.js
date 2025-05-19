@@ -235,7 +235,7 @@ const updatePersona = async (req, res) => {
         phone = @phone,
         address = @address,
         dob = @dob,
-        shiftid = @shiftid
+        shiftid = @shiftid,
         breakid = @breakid
       WHERE id = @id
     `);
@@ -247,9 +247,6 @@ const updatePersona = async (req, res) => {
       message: 'updated successfully'
     });
   } catch (error) {
-    console.log('====================================');
-    console.log(error);
-    console.log('====================================');
     res.status(500).json({
       success: false,
       message: 'Server error',

@@ -21,6 +21,14 @@ const ShiftRoutes = require('./routes/ShiftRoutes');
 const ReportRoutes = require('./routes/ReportRoutes');
 const HoliDayRoutes = require('./routes/HoliDayRoutes');
 const BreakRoutes = require('./routes/BreakRoutes');
+const User_TypeRoutes = require('./routes/User_TypeRoutes');
+const MenuRoutes = require('./routes/MenuRoutes');
+const RoleWithPermissionRoutes = require('./routes/RoleWithPermissionRoutes');
+const UserRoutes = require('./routes/UserRoutes');
+const LoginRoutes = require('./routes/LoginRoutes');
+const UserPermissionRoutes = require('./routes/UserPermissionRoutes');
+const LeaveTypeRoutes = require('./routes//LeaveTypeRoutes');
+const LeaveApplicationRoutes = require('./routes/LeaveApplicationRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -59,33 +67,42 @@ app.use('/api/role', RoleRoutes);
 app.use('/api/dashboard', DashboardRoutes);
 app.use('/api/break', BreakRoutes);
 app.use('/api/report', ReportRoutes);
+app.use('/api/usertype', User_TypeRoutes);
+app.use('/api/menu', MenuRoutes);
+app.use('/api/roleuser', RoleWithPermissionRoutes);
+app.use('/api/user', UserRoutes);
+app.use('/api/login', LoginRoutes);
+app.use('/api/userpermission', UserPermissionRoutes);
+app.use('/api/leavetype', LeaveTypeRoutes);
+app.use('/api/leaveapp', LeaveApplicationRoutes);
 
-// const path = require("path");
+const path = require("path");
 
-// const swaggerFilePath = process.env.NODE_ENV === "production"
-//   ? path.join(__dirname, "./swagger-output.json")
-//   : path.join(__dirname, "./swagger-output.json"); 
+const swaggerFilePath = process.env.NODE_ENV === "production"
+  ? path.join(__dirname, "./swagger-output.json")
+  : path.join(__dirname, "./swagger-output.json"); 
 
-// const swaggerFile = require(swaggerFilePath);
+const swaggerFile = require(swaggerFilePath);
 
-// app.use("/app", swaggerUi.serve, swaggerUi.setup(swaggerFile));
-// app.use((err, req, res, next) => {
-//   console.error(err.stack);
-//   res.status(500).json({
-//     success: false,
-//     message: 'Something went wrong!',
-//     error: process.env.NODE_ENV === 'development' ? err.message : undefined
-//   });
-// });
+app.use("/app", swaggerUi.serve, swaggerUi.setup(swaggerFile));
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
 
 
 
 const PORT = process.env.PORT || 5000;
-const HOST = '192.168.1.43';  // To listen on all network interfaces (external access)
+const HOST = '192.168.1.39';  // To listen on all network interfaces (external access)
+// const HOST = '192.168.130.119';  // To listen on all network interfaces (external access)
 
-// app.listen(PORT, HOST, () => {
-//   console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
-// });
+app.listen(PORT, HOST, () => {
+  console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
+});
 
 
 // const PORT = process.env.PORT || 5000;
