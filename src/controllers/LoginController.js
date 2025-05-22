@@ -1,5 +1,5 @@
 const { getConnection, sql } = require('../config/database');
-const bcrypt = require('bcrypt');
+const bcryptjs= require('bcryptjs');
 
 const login = async (req, res) => {
   const { loginName, password } = req.body;
@@ -23,7 +23,7 @@ const login = async (req, res) => {
     const userLogin = userResult.recordset[0];
 
     // Step 2: Validate password
-    const isMatch = await bcrypt.compare(password, userLogin.PASSWORD);
+    const isMatch = await bcryptjs.compare(password, userLogin.PASSWORD);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid password' });
     }

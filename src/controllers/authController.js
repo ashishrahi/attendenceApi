@@ -1,6 +1,6 @@
 const { getConnection, sql } = require('../config/database');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const bcryptjs= require('bcryptjs');
 const { encryptData } = require('../middleware/crypto');
 const emailservice = require('../middleware/emailservice');
 
