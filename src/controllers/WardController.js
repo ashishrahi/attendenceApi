@@ -97,17 +97,28 @@ const getWard = async (req, res) => {
         });
     }
 };
-
+// deleteward
 const deleteWard = async (req, res) => {
     try {
       const { id } = req.params;
-  
+    //  validation of id
       if (!id || isNaN(id)) {
         return res.status(400).json({ success: false, message: 'Invalid ID' });
       }
-  
+    //  creation of connection
       const pool = await getConnection();
   
+      //wardId exist in area
+      const existwardId = await pool.request()
+                                    .input('id',sql.Int,id)
+                                    .query(`SELECT COUNT(*) AS total FROM dbo.d05_area Where ward_id = @id`) 
+     if (existwardId.recordset[0].total > 0) {
+      return res.status(400).json({
+        success:false,
+        message:"Ward already exist in area"
+      })
+     }
+    //  delete Query for ward
       const result = await pool.request()
         .input('id', sql.Int, id)
         .query(`DELETE FROM d04_ward WHERE Id = @id;`);

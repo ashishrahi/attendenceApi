@@ -101,7 +101,8 @@ app.use((err, req, res, next) => {
 
 
 const PORT = process.env.PORT || 5000;
-const HOST = '192.168.1.39';  // To listen on all network interfaces (external access)
+// To listen on all network interfaces (external access)
+const HOST = '192.168.1.70';  
 // const HOST = '192.168.130.119';  // To listen on all network interfaces (external access)
 
 app.listen(PORT, HOST, () => {

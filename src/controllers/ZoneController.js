@@ -1,6 +1,6 @@
 const { getConnection, sql } = require('../config/database');
 
-
+//  creation of zones
 const createZone = async (req, res) => {
     try {
       const { name, code } = req.body;
@@ -32,7 +32,7 @@ const createZone = async (req, res) => {
       });
     }
   };
-
+//  update of all zones
   const updateZone = async (req, res) => {
   try {
     const { id, name, code } = req.body;
@@ -68,7 +68,7 @@ const createZone = async (req, res) => {
   }
 };
 
-
+//  getting all zones
 const getZone = async (req, res) => {
     try {
         // console.log(req.user.personData);
@@ -95,40 +95,58 @@ const getZone = async (req, res) => {
     }
 };
 
+// delete zones
 const deleteZone = async (req, res) => {
-    try {
-      const { id } = req.params;
-  
-      if (!id || isNaN(id)) {
-        return res.status(400).json({ success: false, message: 'Invalid ID' });
-      }
-  
-      const pool = await getConnection();
-  
-      const result = await pool.request()
-        .input('id', sql.Int, id)
-        .query(`DELETE FROM d03_zone WHERE Id = @id;`);
-  
-      if (result.rowsAffected[0] > 0) {
-        res.json({
-          success: true,
-          message: 'Deleted successfully'
-        });
-      } else {
-        res.status(404).json({
-          success: false,
-          message: 'Zone not found'
-        });
-      }
-    } catch (error) {
-      console.error('Error in deleteZone:', error);
-      res.status(500).json({
+  try {
+    const { id } = req.params;
+
+    // validate Id
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ success: false, message: 'Zone is is wrong' });
+    }
+
+    // connect to database
+    const pool = await getConnection();
+
+    // checking for database id exist or not
+    const zoneIdExist = await pool.request()
+      .input('id', sql.Int, id)
+      .query(`SELECT COUNT(*) AS total FROM d04_ward WHERE zone_id = @id`);
+
+      // if ward already exist
+    if (zoneIdExist.recordset[0].total > 0) {
+      return res.status(400).json({
         success: false,
-        message: 'Server error',
-        error: error.message
+        message: "The Zone cannot be deleted already use in ward"
       });
     }
-  };
+
+    // Zone to be deleted,if zone is not in use
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .query(`DELETE FROM d03_zone WHERE Id = @id`);
+
+    if (result.rowsAffected[0] > 0) {
+      res.json({
+        success: true,
+        message: 'Zone has been successfully deleted'
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'Zone has not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error in deleteZone:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error',
+      error: error.message
+    });
+  }
+};
+
   
 
 module.exports = {
