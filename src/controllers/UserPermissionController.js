@@ -52,51 +52,73 @@ const createUserPermission = async (req, res) => {
   }
 };
 
-
 const updateUserPermission = async (req, res) => {
+  const UserId = req.params.id; // Corrected from req.params.userId
+  const permissions = req.body;
+
+  // Basic validation
+  if (!Array.isArray(permissions) || !UserId) {
+    return res.status(400).json({ success: false, message: "Invalid input" });
+  }
+
   try {
-    const {
-      UserId, MenuId, ParentId,
-      IsAdd, IsEdit, IsDel, IsView,
-      IsPrint, IsExport, IsRelease, IsPost
-    } = req.body;
-
     const pool = await getConnection();
+    const transaction = new sql.Transaction(pool);
 
-    const result = await pool.request()
-      .input('UserId', sql.NVarChar(450), UserId)
-      .input('MenuId', sql.Int, MenuId)
-      .input('ParentId', sql.Int, ParentId)
-      .input('IsAdd', sql.Bit, IsAdd)
-      .input('IsEdit', sql.Bit, IsEdit)
-      .input('IsDel', sql.Bit, IsDel)
-      .input('IsView', sql.Bit, IsView)
-      .input('IsPrint', sql.Bit, IsPrint)
-      .input('IsExport', sql.Bit, IsExport)
-      .input('IsRelease', sql.Bit, IsRelease)
-      .input('IsPost', sql.Bit, IsPost)
-      .query(`
-        UPDATE UserPermission
-        SET ParentId = @ParentId,
-            IsAdd = @IsAdd,
-            IsEdit = @IsEdit,
-            IsDel = @IsDel,
-            IsView = @IsView,
-            IsPrint = @IsPrint,
-            IsExport = @IsExport,
-            IsRelease = @IsRelease,
-            IsPost = @IsPost
-        WHERE UserId = @UserId AND MenuId = @MenuId;
+    await transaction.begin();
 
-        SELECT 1 AS IsSuccess, 'Updated successfully' AS Message;
-      `);
+    for (const item of permissions) {
+      const {
+        MenuId, ParentId = 0,
+        IsAdd = false, IsEdit = false, IsDel = false, IsView = false,
+        IsPrint = false, IsExport = false, IsRelease = false, IsPost = false
+      } = item;
 
-    const { IsSuccess, Message } = result.recordset[0];
+      await transaction.request()
+        .input('UserId', sql.NVarChar(450), UserId)
+        .input('MenuId', sql.Int, MenuId)
+        .input('ParentId', sql.Int, ParentId)
+        .input('IsAdd', sql.Bit, IsAdd)
+        .input('IsEdit', sql.Bit, IsEdit)
+        .input('IsDel', sql.Bit, IsDel)
+        .input('IsView', sql.Bit, IsView)
+        .input('IsPrint', sql.Bit, IsPrint)
+        .input('IsExport', sql.Bit, IsExport)
+        .input('IsRelease', sql.Bit, IsRelease)
+        .input('IsPost', sql.Bit, IsPost)
+        .query(`
+          IF EXISTS (
+            SELECT 1 FROM UserPermission WHERE UserId = @UserId AND MenuId = @MenuId
+          )
+          BEGIN
+            UPDATE UserPermission
+            SET ParentId = @ParentId,
+                IsAdd = @IsAdd,
+                IsEdit = @IsEdit,
+                IsDel = @IsDel,
+                IsView = @IsView,
+                IsPrint = @IsPrint,
+                IsExport = @IsExport,
+                IsRelease = @IsRelease,
+                IsPost = @IsPost
+            WHERE UserId = @UserId AND MenuId = @MenuId;
+          END
+          ELSE
+          BEGIN
+            INSERT INTO UserPermission
+            (UserId, MenuId, ParentId, IsAdd, IsEdit, IsDel, IsView, IsPrint, IsExport, IsRelease, IsPost)
+            VALUES
+            (@UserId, @MenuId, @ParentId, @IsAdd, @IsEdit, @IsDel, @IsView, @IsPrint, @IsExport, @IsRelease, @IsPost);
+          END
+        `);
+    }
 
-    res.json({ success: IsSuccess, message: Message });
+    await transaction.commit();
+
+    res.status(200).json({ success: true, message: "Permissions updated successfully" });
   } catch (error) {
-    console.error('Error in updateUserPermission:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error("Error updating permissions:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 

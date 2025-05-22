@@ -1,5 +1,5 @@
 const { getConnection, sql } = require('../config/database');
-const bcrypt = require('bcrypt'); // For hashing password
+const bcryptjs= require('bcryptjs'); // For hashing password
 
 const createUser = async (req, res) => {
   const {
@@ -77,7 +77,7 @@ const createUser = async (req, res) => {
 
     const userId = userResult.recordset[0].USER_ID;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcryptjs.hash(password, 10);
 
     const loginRequest = new sql.Request(transaction);
     await loginRequest
@@ -175,7 +175,7 @@ const updateUser = async (req, res) => {
 
     // Password update
     if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcryptjs.hash(password, 10);
       loginRequest.input('PASSWORD', sql.NVarChar, hashedPassword);
       await loginRequest.query(`
         UPDATE USER_LOGIN

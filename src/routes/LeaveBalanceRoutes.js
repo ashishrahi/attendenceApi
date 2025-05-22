@@ -18,9 +18,10 @@ const LeaveBalanceController = require('../controllers/LeaveBalanceController')
  *       401:
  *         description: Unauthorized
  */
-// router.post('/create', LeaveBalanceController.);
-router.put('/update', LeaveBalanceController.updateLeaveBalance);
-router.get('/get', LeaveBalanceController.getLeaveBalance);
-// router.delete('/delete/:id', LeaveBalanceController.deleteArea);
+router.post('/create', LeaveBalanceController.createLeaveBalance);
+router.put('/update/:id', LeaveBalanceController.updateLeaveBalance);
+router.post('/get', LeaveBalanceController.getLeaveBalance);
+router.post('/getsummary', LeaveBalanceController.getEmployeeLeaveDetails);
+router.delete('/delete/:id', LeaveBalanceController.deleteLeaveBalance);
 
 module.exports = router;

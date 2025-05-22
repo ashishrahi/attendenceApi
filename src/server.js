@@ -27,8 +27,10 @@ const RoleWithPermissionRoutes = require('./routes/RoleWithPermissionRoutes');
 const UserRoutes = require('./routes/UserRoutes');
 const LoginRoutes = require('./routes/LoginRoutes');
 const UserPermissionRoutes = require('./routes/UserPermissionRoutes');
-const LeaveTypeRoutes = require('./routes//LeaveTypeRoutes');
-const LeaveApplicationRoutes = require('./routes/LeaveApplicationRoutes');
+const LeaveTypeRoutes = require('./routes/LeaveTypeRoutes');
+const LeaveRequestRoutes = require('./routes/LeaveRequestRoutes');
+const LeaveBalanceRoutes = require('./routes/LeaveBalanceRoutes');
+const LeaveCategoryRoutes = require('./routes/LeaveCategoryRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -74,7 +76,9 @@ app.use('/api/user', UserRoutes);
 app.use('/api/login', LoginRoutes);
 app.use('/api/userpermission', UserPermissionRoutes);
 app.use('/api/leavetype', LeaveTypeRoutes);
-app.use('/api/leaveapp', LeaveApplicationRoutes);
+app.use('/api/leaveapp', LeaveRequestRoutes);
+app.use('/api/leavebalance', LeaveBalanceRoutes);
+app.use('/api/leavecategory', LeaveCategoryRoutes);
 
 const path = require("path");
 

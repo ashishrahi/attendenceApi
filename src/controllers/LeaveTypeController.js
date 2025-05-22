@@ -1,12 +1,12 @@
 const { getConnection, sql } = require('../config/database');
 
 const createLeaveType = async (req, res) => {
-  const { leaveTypeName, maxDaysAllowed, description, isActive } = req.body;
+  const { leaveTypeName, maxDaysAllowed, description, isActive, categoryId } = req.body;
 
-  if (!leaveTypeName || maxDaysAllowed === undefined) {
+  if (!leaveTypeName || maxDaysAllowed === undefined || categoryId === undefined) {
     return res.status(400).json({
       success: false,
-      message: 'leaveTypeName and maxDaysAllowed are required'
+      message: 'leaveTypeName, maxDaysAllowed और categoryId आवश्यक हैं'
     });
   }
 
@@ -17,9 +17,10 @@ const createLeaveType = async (req, res) => {
       .input('MAX_DAYS_ALLOWED', sql.Int, maxDaysAllowed)
       .input('DESCRIPTION', sql.NVarChar, description || '')
       .input('IS_ACTIVE', sql.Bit, isActive)
+      .input('CATEGORY_ID', sql.Int, categoryId)
       .query(`
-        INSERT INTO LeaveType (LeaveTypeName, MaxDaysAllowed, Description, IsActive)
-        VALUES (@LEAVE_TYPE_NAME, @MAX_DAYS_ALLOWED, @DESCRIPTION, @IS_ACTIVE)
+        INSERT INTO LeaveType (LeaveTypeName, MaxDaysAllowed, Description, IsActive, CategoryId)
+        VALUES (@LEAVE_TYPE_NAME, @MAX_DAYS_ALLOWED, @DESCRIPTION, @IS_ACTIVE, @CATEGORY_ID)
       `);
 
     res.status(201).json({ success: true, message: 'Leave Type created successfully' });
@@ -30,8 +31,6 @@ const createLeaveType = async (req, res) => {
 };
 
 
-
-// Get all Leave Types
 const getLeaveTypes = async (req, res) => {
   try {
     const pool = await getConnection();
@@ -43,15 +42,14 @@ const getLeaveTypes = async (req, res) => {
   }
 };
 
-// Update a Leave Type
 const updateLeaveType = async (req, res) => {
   const { id } = req.params;
-  const { leaveTypeName, maxDaysAllowed, description, isActive } = req.body;
+  const { leaveTypeName, maxDaysAllowed, description, isActive, categoryId } = req.body;
 
-  if (!leaveTypeName || maxDaysAllowed === undefined) {
+  if (!leaveTypeName || maxDaysAllowed === undefined || categoryId === undefined) {
     return res.status(400).json({
       success: false,
-      message: 'leaveTypeName and maxDaysAllowed are required'
+      message: 'leaveTypeName, maxDaysAllowed और categoryId आवश्यक हैं'
     });
   }
 
@@ -63,6 +61,7 @@ const updateLeaveType = async (req, res) => {
       .input('MAX_DAYS_ALLOWED', sql.Int, maxDaysAllowed)
       .input('DESCRIPTION', sql.NVarChar, description || '')
       .input('IS_ACTIVE', sql.Bit, isActive)
+      .input('CATEGORY_ID', sql.Int, categoryId)
       .input('MODIFIED_AT', sql.DateTime, new Date())
       .query(`
         UPDATE LeaveType 
@@ -71,6 +70,7 @@ const updateLeaveType = async (req, res) => {
           MaxDaysAllowed = @MAX_DAYS_ALLOWED,
           Description = @DESCRIPTION,
           IsActive = @IS_ACTIVE,
+          CategoryId = @CATEGORY_ID,
           ModifiedAt = @MODIFIED_AT
         WHERE LeaveTypeID = @LEAVE_TYPE_ID
       `);
@@ -82,8 +82,6 @@ const updateLeaveType = async (req, res) => {
   }
 };
 
-
-// Delete a Leave Type
 const deleteLeaveType = async (req, res) => {
   const { id } = req.params;
 
@@ -99,7 +97,6 @@ const deleteLeaveType = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
-
 
 module.exports = {
   createLeaveType,
