@@ -1,4 +1,5 @@
 const { getConnection, sql } = require('../config/database');
+const moment = require('moment');
 
 const Dasboarddata = async (req, res) => {
   try {
@@ -96,28 +97,59 @@ const Dasboarddata = async (req, res) => {
     }
 
     // Type 3: Present employee list
+    // if (type === 3) {
+    //   const presentQuery = await pool.request()
+    //     .query(`SELECT 
+    //         e.*, 
+    //         ua_summary.FirstInTime,
+    //         ua_summary.LastOutTime,
+    //         ua_summary.LastPunch
+    //     FROM 
+    //         d00_emptable e
+    //     INNER JOIN (
+    //         SELECT 
+    //             UserID,
+    //             MIN(CASE WHEN io_mode = 0 THEN AttDateTime END) AS FirstInTime,
+    //             MAX(CASE WHEN io_mode = 1 THEN AttDateTime END) AS LastOutTime,
+    //             MAX(AttDateTime) AS LastPunch
+    //         FROM 
+    //             UserAttendance
+    //         WHERE 
+    //             CAST(AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
+    //         GROUP BY 
+    //             UserID
+    //     ) ua_summary ON e.userid = ua_summary.UserID;
+    //             `);
+
+    //   return res.json({
+    //     success: true,
+    //     message: 'Present Employee Retrieved',
+    //     data: presentQuery.recordset
+    //   });
+    // }
     if (type === 3) {
       const presentQuery = await pool.request()
         .query(`SELECT 
-            e.*, 
-            ua_summary.FirstInTime,
-            ua_summary.LastOutTime,
-            ua_summary.LastPunch
-        FROM 
-            d00_emptable e
-        INNER JOIN (
-            SELECT 
-                UserID,
-                MIN(CASE WHEN io_mode = 0 THEN AttDateTime END) AS FirstInTime,
-                MAX(CASE WHEN io_mode = 1 THEN AttDateTime END) AS LastOutTime,
-                MAX(AttDateTime) AS LastPunch
-            FROM 
-                UserAttendance
-            WHERE 
-                CAST(AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
-            GROUP BY 
-                UserID
-        ) ua_summary ON e.userid = ua_summary.UserID;
+                    e.*, 
+                    ua_summary.FirstInTime,
+                    ua_summary.LastOutTime,
+                    ua_summary.LastPunch,
+                    CONVERT(varchar, DATEADD(SECOND, DATEDIFF(SECOND, ua_summary.FirstInTime, ua_summary.LastOutTime), 0), 108) AS WorkingHours
+                FROM 
+                    d00_emptable e
+                INNER JOIN (
+                    SELECT 
+                        UserID,
+                        MIN(CASE WHEN io_mode = 0 THEN AttDateTime END) AS FirstInTime,
+                        MAX(CASE WHEN io_mode = 1 THEN AttDateTime END) AS LastOutTime,
+                        MAX(AttDateTime) AS LastPunch
+                    FROM 
+                        UserAttendance
+                    WHERE 
+                        CAST(AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
+                    GROUP BY 
+                        UserID
+                ) ua_summary ON e.userid = ua_summary.UserID;
                 `);
 
       return res.json({
@@ -127,7 +159,9 @@ const Dasboarddata = async (req, res) => {
       });
     }
 
+
     // Type 4: Absent employee list
+    
     if (type === 4) {
       const absentQuery = await pool.request()
         .query(`SELECT 
@@ -158,110 +192,217 @@ const Dasboarddata = async (req, res) => {
         data: absentQuery.recordset
       });
     }
+    // Type 5: Early leavers employee list
+    // if (type === 5) {
+    //   const earlyLeaversQuery = await pool.request().query(`
+    //     SELECT 
+    //         e.*, 
+    //         s.shiftname, 
+    //         s.intime AS ShiftInTime, 
+    //         s.outtime AS ShiftOutTime,
+    //         first_time.FirstInTime,
+    //         ua_summary.LastOutTime,
+    //         ua_summary.LastPunch
+    //     FROM 
+    //         d00_emptable e
+    //     JOIN 
+    //         shift_master s ON e.shiftid = s.id
+    //     JOIN (
+    //         SELECT 
+    //             ua.UserID,
+    //             MAX(CASE WHEN ua.io_mode = 1 THEN ua.AttDateTime END) AS LastOutTime,
+    //             MAX(ua.AttDateTime) AS LastPunch,
+    //             MAX(CASE WHEN ua.AttDateTime = max_att.LastPunchTime THEN ua.io_mode END) AS LastPunchMode
+    //         FROM 
+    //             UserAttendance ua
+    //         JOIN (
+    //             SELECT 
+    //                 UserID, 
+    //                 MAX(AttDateTime) AS LastPunchTime
+    //             FROM 
+    //                 UserAttendance
+    //             WHERE 
+    //                 CAST(AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
+    //             GROUP BY 
+    //                 UserID
+    //         ) max_att ON ua.UserID = max_att.UserID
+    //                  AND ua.AttDateTime = max_att.LastPunchTime
+    //         WHERE 
+    //             CAST(ua.AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
+    //         GROUP BY 
+    //             ua.UserID, max_att.LastPunchTime
+    //     ) ua_summary ON e.userid = ua_summary.UserID
+    //     JOIN (
+    //         SELECT 
+    //             UserID, 
+    //             MIN(AttDateTime) AS FirstInTime
+    //         FROM 
+    //             UserAttendance
+    //         WHERE 
+    //             CAST(AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
+    //         GROUP BY 
+    //             UserID
+    //     ) first_time ON e.userid = first_time.UserID
+    //     WHERE 
+    //         ua_summary.LastOutTime < 
+    //             CAST(CONVERT(varchar, GETDATE(), 23) + ' ' + CONVERT(varchar, s.outtime, 108) AS datetime)
+    //         AND ua_summary.LastPunchMode = 1;
+    //   `);
 
+    //   return res.json({
+    //     success: true,
+    //     message: 'Early leavers retrieved',
+    //     data: earlyLeaversQuery.recordset
+    //   });
+    // }
     if (type === 5) {
-      const earlyLeaversQuery = await pool.request().query(`
+  const earlyLeaversQuery = await pool.request().query(`
+    SELECT 
+        e.*, 
+        s.shiftname, 
+        s.intime AS ShiftInTime, 
+        s.outtime AS ShiftOutTime,
+        first_time.FirstInTime,
+        ua_summary.LastOutTime,
+        ua_summary.LastPunch,
+        CONVERT(varchar, DATEADD(SECOND, DATEDIFF(SECOND, first_time.FirstInTime, ua_summary.LastOutTime), 0), 108) AS WorkingHours
+    FROM 
+        d00_emptable e
+    JOIN 
+        shift_master s ON e.shiftid = s.id
+    JOIN (
         SELECT 
-            e.*, 
-            s.shiftname, 
-            s.intime AS ShiftInTime, 
-            s.outtime AS ShiftOutTime,
-            first_time.FirstInTime,
-            ua_summary.LastOutTime,
-            ua_summary.LastPunch
+            ua.UserID,
+            MAX(CASE WHEN ua.io_mode = 1 THEN ua.AttDateTime END) AS LastOutTime,
+            MAX(ua.AttDateTime) AS LastPunch,
+            MAX(CASE WHEN ua.AttDateTime = max_att.LastPunchTime THEN ua.io_mode END) AS LastPunchMode
         FROM 
-            d00_emptable e
-        JOIN 
-            shift_master s ON e.shiftid = s.id
-        JOIN (
-            SELECT 
-                ua.UserID,
-                MAX(CASE WHEN ua.io_mode = 1 THEN ua.AttDateTime END) AS LastOutTime,
-                MAX(ua.AttDateTime) AS LastPunch,
-                MAX(CASE WHEN ua.AttDateTime = max_att.LastPunchTime THEN ua.io_mode END) AS LastPunchMode
-            FROM 
-                UserAttendance ua
-            JOIN (
-                SELECT 
-                    UserID, 
-                    MAX(AttDateTime) AS LastPunchTime
-                FROM 
-                    UserAttendance
-                WHERE 
-                    CAST(AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
-                GROUP BY 
-                    UserID
-            ) max_att ON ua.UserID = max_att.UserID
-                     AND ua.AttDateTime = max_att.LastPunchTime
-            WHERE 
-                CAST(ua.AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
-            GROUP BY 
-                ua.UserID, max_att.LastPunchTime
-        ) ua_summary ON e.userid = ua_summary.UserID
+            UserAttendance ua
         JOIN (
             SELECT 
                 UserID, 
-                MIN(AttDateTime) AS FirstInTime
+                MAX(AttDateTime) AS LastPunchTime
             FROM 
                 UserAttendance
             WHERE 
                 CAST(AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
             GROUP BY 
                 UserID
-        ) first_time ON e.userid = first_time.UserID
+        ) max_att ON ua.UserID = max_att.UserID
+                 AND ua.AttDateTime = max_att.LastPunchTime
         WHERE 
-            ua_summary.LastOutTime < 
-                CAST(CONVERT(varchar, GETDATE(), 23) + ' ' + CONVERT(varchar, s.outtime, 108) AS datetime)
-            AND ua_summary.LastPunchMode = 1;
-      `);
+            CAST(ua.AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
+        GROUP BY 
+            ua.UserID, max_att.LastPunchTime
+    ) ua_summary ON e.userid = ua_summary.UserID
+    JOIN (
+        SELECT 
+            UserID, 
+            MIN(AttDateTime) AS FirstInTime
+        FROM 
+            UserAttendance
+        WHERE 
+            CAST(AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
+        GROUP BY 
+            UserID
+    ) first_time ON e.userid = first_time.UserID
+    WHERE 
+        ua_summary.LastOutTime < 
+            CAST(CONVERT(varchar, GETDATE(), 23) + ' ' + CONVERT(varchar, s.outtime, 108) AS datetime)
+        AND ua_summary.LastPunchMode = 1;
+  `);
 
-      return res.json({
-        success: true,
-        message: 'Early leavers retrieved',
-        data: earlyLeaversQuery.recordset
-      });
-    }
+  return res.json({
+    success: true,
+    message: 'Early leavers retrieved',
+    data: earlyLeaversQuery.recordset
+  });
+}
 
+
+    // Type 6: Late Commer employee list
+    // if (type === 6) {
+    //   const Latecomerquery = await pool.request()
+    //     .query(`
+    //       SELECT 
+    //           e.*, 
+    //           s.shiftname, 
+    //           s.intime AS ShiftInTime, 
+    //           s.outtime AS ShiftOutTime,
+    //           ua_summary.FirstInTime,
+    //           ua_summary.LastOutTime,
+    //           ua_summary.LastPunch
+    //       FROM 
+    //           d00_emptable e
+    //       JOIN 
+    //           shift_master s ON e.shiftid = s.id
+    //       JOIN (
+    //           SELECT 
+    //               ua.UserID,
+    //               MIN(ua.AttDateTime) AS FirstInTime,
+    //               MAX(CASE WHEN ua.io_mode = 1 THEN ua.AttDateTime END) AS LastOutTime,
+    //               MAX(ua.AttDateTime) AS LastPunch
+    //           FROM 
+    //               UserAttendance ua
+    //           WHERE 
+    //               CAST(ua.AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
+    //           GROUP BY 
+    //               ua.UserID
+    //       ) ua_summary ON e.userid = ua_summary.UserID
+    //       WHERE 
+    //           ua_summary.FirstInTime > CAST(CONVERT(varchar, GETDATE(), 23) + ' ' + CONVERT(varchar, s.intime, 108) AS datetime);
+
+
+    //     `);
+
+    //   return res.json({
+    //     success: true,
+    //     message: 'late comer retrieved',
+    //     data: Latecomerquery.recordset
+    //   });
+    // }
     if (type === 6) {
-      const Latecomerquery = await pool.request()
-        .query(`
+  const Latecomerquery = await pool.request()
+    .query(`
+      SELECT 
+          e.*, 
+          s.shiftname, 
+          s.intime AS ShiftInTime, 
+          s.outtime AS ShiftOutTime,
+          ua_summary.FirstInTime,
+          ua_summary.LastOutTime,
+          ua_summary.LastPunch,
+         
+          CONVERT(varchar, DATEADD(SECOND, DATEDIFF(SECOND, ua_summary.FirstInTime, ua_summary.LastOutTime), 0), 108) AS WorkingHours
+      FROM 
+          d00_emptable e
+      JOIN 
+          shift_master s ON e.shiftid = s.id
+      JOIN (
           SELECT 
-              e.*, 
-              s.shiftname, 
-              s.intime AS ShiftInTime, 
-              s.outtime AS ShiftOutTime,
-              ua_summary.FirstInTime,
-              ua_summary.LastOutTime,
-              ua_summary.LastPunch
+              ua.UserID,
+              MIN(ua.AttDateTime) AS FirstInTime,
+              MAX(CASE WHEN ua.io_mode = 1 THEN ua.AttDateTime END) AS LastOutTime,
+              MAX(ua.AttDateTime) AS LastPunch
           FROM 
-              d00_emptable e
-          JOIN 
-              shift_master s ON e.shiftid = s.id
-          JOIN (
-              SELECT 
-                  ua.UserID,
-                  MIN(ua.AttDateTime) AS FirstInTime,
-                  MAX(CASE WHEN ua.io_mode = 1 THEN ua.AttDateTime END) AS LastOutTime,
-                  MAX(ua.AttDateTime) AS LastPunch
-              FROM 
-                  UserAttendance ua
-              WHERE 
-                  CAST(ua.AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
-              GROUP BY 
-                  ua.UserID
-          ) ua_summary ON e.userid = ua_summary.UserID
+              UserAttendance ua
           WHERE 
-              ua_summary.FirstInTime > CAST(CONVERT(varchar, GETDATE(), 23) + ' ' + CONVERT(varchar, s.intime, 108) AS datetime);
+              CAST(ua.AttDateTime AS DATE) = CAST(GETDATE() AS DATE)
+          GROUP BY 
+              ua.UserID
+      ) ua_summary ON e.userid = ua_summary.UserID
+      WHERE 
+          ua_summary.FirstInTime > 
+              CAST(CONVERT(varchar, GETDATE(), 23) + ' ' + CONVERT(varchar, s.intime, 108) AS datetime);
+    `);
 
+  return res.json({
+    success: true,
+    message: 'late comer retrieved',
+    data: Latecomerquery.recordset
+  });
+}
 
-        `);
-
-      return res.json({
-        success: true,
-        message: 'late comer retrieved',
-        data: Latecomerquery.recordset
-      });
-    }
     // Type 7: Weekly present employee count (excluding Sundays)
     if (type === 7) {
       const weeklyPresentQuery = await pool.request().query(`
@@ -297,7 +438,7 @@ const Dasboarddata = async (req, res) => {
       });
     }
 
-
+    
     // Default: Invalid type
     return res.status(400).json({
       success: false,
