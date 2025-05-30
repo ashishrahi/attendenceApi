@@ -31,6 +31,8 @@ const LeaveTypeRoutes = require('./routes/LeaveTypeRoutes');
 const LeaveRequestRoutes = require('./routes/LeaveRequestRoutes');
 const LeaveBalanceRoutes = require('./routes/LeaveBalanceRoutes');
 const LeaveCategoryRoutes = require('./routes/LeaveCategoryRoutes');
+const EmployeeTypeRoutes = require('./routes/EmployeeTypeRoutes');
+const EmployeeMapLeaveTypeController = require('./routes/EmployeeMapLeaveTypeRoutes');
 const jwt = require('jsonwebtoken');
 const app = express();
 
@@ -79,6 +81,8 @@ app.use('/api/leavetype', LeaveTypeRoutes);
 app.use('/api/leaveapp', LeaveRequestRoutes);
 app.use('/api/leavebalance', LeaveBalanceRoutes);
 app.use('/api/leavecategory', LeaveCategoryRoutes);
+app.use('/api/employeetype', EmployeeTypeRoutes);
+app.use('/api/employeemap', EmployeeMapLeaveTypeController);
 
 const path = require("path");
 
@@ -101,15 +105,13 @@ app.use((err, req, res, next) => {
 
 
 const PORT = process.env.PORT || 5000;
-const HOST = '192.168.1.39';  // To listen on all network interfaces (external access)
-// const HOST = '192.168.130.119';  // To listen on all network interfaces (external access)
+const HOST = '192.168.1.35';  
 
 app.listen(PORT, HOST, () => {
   console.log(`Server is running on http://localhost:${PORT} or http://${HOST}:${PORT}`);
 });
 
 
-// const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port http://localhost:${PORT}`);
 });

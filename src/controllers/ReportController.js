@@ -26,7 +26,6 @@ JOIN
   return result.recordset;
 };
 
-
 const handleMonthlyReport = async (req, res) => {
   try {
     const pool = await getConnection();
@@ -659,7 +658,6 @@ const handleDailyReport = async (req, res) => {
   }
 };
 
-
 const handlePunchReport = async (req, res) => {
   try {
     const pool = await getConnection();
@@ -960,7 +958,6 @@ function formatDurationToHHMMSS(duration, showNegativeAsZero = true) {
 
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
-
 
 function formatSignedDurationForColumnE(duration, allottedDuration, actualBreakDuration) {
   if (!duration || typeof duration.asMilliseconds !== 'function' ||

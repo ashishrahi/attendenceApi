@@ -65,8 +65,6 @@ const createRole = async (req, res) => {
   }
 };
 
-  
-
 const getRole = async (req, res) => {
     try {
         // console.log(req.user.personData);

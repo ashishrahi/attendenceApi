@@ -1,4 +1,8 @@
 const { getConnection, sql } = require('../config/database');
+const PDFDocument = require('pdfkit');
+const ExcelJS = require('exceljs');
+const moment = require('moment');
+const stream = require("stream");
 
 const createLeaveBalance = async (req, res) => {
   const { employeeId, leaveTypeId, totalEntitled, leaveTaken, year, effectiveDate } = req.body;
@@ -128,45 +132,271 @@ const updateLeaveBalance = async (req, res) => {
   }
 };
 
+// const getLeaveBalance = async (req, res) => {
+//   const { employeeId, leaveTypeId, year } = req.body;
+
+//   try {
+//     const pool = await getConnection();
+//     const request = pool.request();
+
+//     if (employeeId === -1) {
+//       // For all employees: Distinct by EmployeeID, pick latest LastUpdated
+//       const query = `
+//         SELECT lb.*
+//         FROM LeaveBalance lb
+//         INNER JOIN (
+//           SELECT EmployeeID, MAX(LastUpdated) AS MaxUpdated
+//           FROM LeaveBalance
+//           GROUP BY EmployeeID
+//         ) latest ON lb.EmployeeID = latest.EmployeeID AND lb.LastUpdated = latest.MaxUpdated
+//         ORDER BY lb.EmployeeID
+//       `;
+
+//       const result = await request.query(query);
+
+//       return res.status(200).json({
+//         success: true,
+//         data: result.recordset
+//       });
+
+//     } else {
+//       // For specific employee: All records, latest LastUpdated as parent
+//       let query = `
+//         SELECT * FROM LeaveBalance
+//         WHERE EmployeeID = @EMP_ID
+//         ${leaveTypeId !== -1 ? 'AND LeaveTypeID = @TYPE_ID' : ''}
+//         ${year !== null && year !== undefined ? 'AND Year = @YEAR' : ''}
+//         ORDER BY LastUpdated DESC
+//       `;
+
+//       request.input('EMP_ID', sql.Int, employeeId);
+//       if (leaveTypeId !== -1) request.input('TYPE_ID', sql.Int, leaveTypeId);
+//       if (year !== null && year !== undefined) request.input('YEAR', sql.Int, year);
+
+//       const result = await request.query(query);
+
+//       if (result.recordset.length === 0) {
+//         return res.status(404).json({
+//           success: false,
+//           message: 'No Leave Balance record found for the given filters.'
+//         });
+//       }
+
+//       const [parent, ...children] = result.recordset;
+//       return res.status(200).json({
+//         success: true,
+//         data: { parent, children }
+//       });
+//     }
+
+//   } catch (error) {
+//     console.error('Error occurred while fetching leave balance:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: error.message
+//     });
+//   }
+// };
+
 const getLeaveBalance = async (req, res) => {
-  const { employeeId, leaveTypeId, year } = req.body;
+  const { employeeId, leaveTypeId, year, type } = req.body;
 
   try {
     const pool = await getConnection();
     const request = pool.request();
 
-    let query = 'SELECT * FROM LeaveBalance WHERE 1=1';
+    let resultData;
 
-    if (employeeId !== -1) {
-      query += ' AND EmployeeID = @EMP_ID';
+    if (employeeId === -1) {
+      const query = `
+        SELECT lb.LeaveBalanceID,
+               em.id AS EmployeeID,
+               em.first_name AS EmployeeName,
+               lt.LeaveTypeID,
+               lt.LeaveTypeName AS LeaveType,
+               lb.TotalEntitled,
+               lb.LeaveTaken,
+               lb.LeaveRemaining,
+               lb.Year,
+               lb.LastUpdated AS EffectiveDate
+        FROM LeaveBalance lb
+        INNER JOIN (
+          SELECT EmployeeID, MAX(LastUpdated) AS MaxUpdated
+          FROM LeaveBalance
+          GROUP BY EmployeeID
+        ) latest ON lb.EmployeeID = latest.EmployeeID AND lb.LastUpdated = latest.MaxUpdated
+        INNER JOIN d00_emptable em ON lb.EmployeeID = em.id
+        INNER JOIN LeaveType lt ON lb.LeaveTypeID = lt.LeaveTypeID
+        ORDER BY lb.EmployeeID;
+      `;
+
+      const result = await request.query(query);
+      resultData = result.recordset;
+
+    } else {
+      let query = `
+        SELECT 
+          lb.LeaveBalanceID,
+          em.id AS EmployeeID,
+          em.first_name AS EmployeeName,
+          lt.LeaveTypeID,
+          lt.LeaveTypeName AS LeaveType,
+          lb.TotalEntitled,
+          lb.LeaveTaken,
+          lb.LeaveRemaining,
+          lb.Year,
+          lb.LastUpdated AS EffectiveDate
+        FROM LeaveBalance lb
+        INNER JOIN d00_emptable em ON lb.EmployeeID = em.id
+        INNER JOIN LeaveType lt ON lb.LeaveTypeID = lt.LeaveTypeID
+        WHERE lb.EmployeeID = @EMP_ID
+        ${leaveTypeId !== -1 ? 'AND lb.LeaveTypeID = @TYPE_ID' : ''}
+        ${year !== null && year !== undefined ? 'AND lb.Year = @YEAR' : ''}
+        ORDER BY lb.LastUpdated DESC
+      `;
       request.input('EMP_ID', sql.Int, employeeId);
+      if (leaveTypeId !== -1) request.input('TYPE_ID', sql.Int, leaveTypeId);
+      if (year !== null && year !== undefined) request.input('YEAR', sql.Int, year);
+
+      const result = await request.query(query);
+      if (result.recordset.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No Leave Balance record found for the given filters.'
+        });
+      }
+
+      const [parent, ...children] = result.recordset;
+      resultData = { parent, children };
     }
 
-    if (leaveTypeId !== -1) {
-      query += ' AND LeaveTypeID = @TYPE_ID';
-      request.input('TYPE_ID', sql.Int, leaveTypeId);
+    // 📄 PDF Export
+    if (type === 'pdf') {
+      const PDFDocument = require('pdfkit');
+      const moment = require('moment');
+      const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' });
+      const buffers = [];
+
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfData = Buffer.concat(buffers);
+        const base64PDF = pdfData.toString('base64');
+        return res.status(200).json({
+          success: true,
+          message: 'Leave balance PDF generated successfully',
+          base64: base64PDF
+        });
+      });
+
+      doc.fillColor('#0A5275').fontSize(16).font('Helvetica-Bold').text('Leave Balance Report', { align: 'center' });
+      doc.moveDown();
+
+      const headers = ['Sr. No.', 'Employee', 'Leave Type', 'Total Entitled', 'Leave Taken', 'Leave Remaining', 'Year', 'Effective Date'];
+      const colWidths = [50, 100, 80, 80, 70, 80, 50, 100];
+      const totalTableWidth = colWidths.reduce((a, b) => a + b, 0);
+
+      let rows = employeeId === -1 ? resultData : [resultData.parent, ...resultData.children];
+      let xStart = (doc.page.width - totalTableWidth) / 2;
+      let y = doc.y;
+
+      // Header Row
+      let x = xStart;
+      doc.font('Helvetica-Bold').fontSize(9);
+      headers.forEach((text, i) => {
+        doc.rect(x, y, colWidths[i], 20).fillAndStroke('#D6EAF8', '#000').fillColor('black').text(text, x + 3, y + 5);
+        x += colWidths[i];
+      });
+
+      y += 20;
+      doc.font('Helvetica').fontSize(8);
+
+      rows.forEach((row, index) => {
+        x = xStart;
+        if (y > 770) {
+          doc.addPage();
+          y = 40;
+        }
+
+        const values = [
+          index + 1,
+          row.EmployeeName ?? '',
+          row.LeaveType ?? '',
+          row.TotalEntitled ?? '',
+          row.LeaveTaken ?? '',
+          row.LeaveRemaining ?? '',
+          row.Year ?? '',
+          row.EffectiveDate ? moment(row.EffectiveDate).format('DD/MM/YYYY') : ''
+        ];
+
+        values.forEach((val, i) => {
+          doc.rect(x, y, colWidths[i], 20).stroke().text(val.toString(), x + 3, y + 5);
+          x += colWidths[i];
+        });
+
+        y += 20;
+      });
+
+      doc.end();
+      return;
     }
 
-    if (year !== null && year !== undefined) {
-      query += ' AND Year = @YEAR';
-      request.input('YEAR', sql.Int, year);
-    }
+    // 📊 Excel Export
+    else if (type === 'excel') {
+      const ExcelJS = require('exceljs');
+      const moment = require('moment');
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Leave Balance Report');
 
-    const result = await request.query(query);
+      worksheet.mergeCells('A1:H1');
+      worksheet.getCell('A1').value = 'Leave Balance Report';
+      worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getCell('A1').font = { bold: true, size: 14 };
 
-    if (result.recordset.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'No leave balance records found for the given filters'
+      worksheet.columns = [
+        { header: 'Sr. No.', key: 'sr', width: 10 },
+        { header: 'Employee', key: 'emp', width: 25 },
+        { header: 'Leave Type', key: 'type', width: 20 },
+        { header: 'Total Entitled', key: 'totalEntitled', width: 15 },
+        { header: 'Leave Taken', key: 'taken', width: 15 },
+        { header: 'Leave Remaining', key: 'remain', width: 15 },
+        { header: 'Year', key: 'year', width: 10 },
+        { header: 'Effective Date', key: 'date', width: 20 },
+      ];
+
+      const rows = employeeId === -1 ? resultData : [resultData.parent, ...resultData.children];
+
+      rows.forEach((row, index) => {
+        worksheet.addRow({
+          sr: index + 1,
+          emp: row.EmployeeName,
+          type: row.LeaveType,
+          totalEntitled: row.TotalEntitled,
+          taken: row.LeaveTaken,
+          remain: row.LeaveRemaining,
+          year: row.Year,
+          date: moment(row.EffectiveDate).format('DD/MM/YYYY')
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const base64Excel = buffer.toString('base64');
+
+      return res.status(200).json({
+        success: true,
+        message: 'Excel leave balance generated successfully',
+        base64: base64Excel
       });
     }
 
-    res.status(200).json({
+    // 🟢 Default JSON response
+    return res.status(200).json({
       success: true,
-      data: result.recordset
+      data: resultData
     });
+
   } catch (error) {
-    console.error('Error filtering leave balance:', error);
+    console.error('Error occurred while fetching leave balance:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -174,6 +404,8 @@ const getLeaveBalance = async (req, res) => {
     });
   }
 };
+
+
 
 const deleteLeaveBalance = async (req, res) => {
   const { id } = req.params; // leaveBalanceId from URL
@@ -220,7 +452,7 @@ const deleteLeaveBalance = async (req, res) => {
 };
 
 const getEmployeeLeaveDetails = async (req, res) => {
-  const { employeeId } = req.body; 
+  const { employeeId } = req.body;
 
   if (!employeeId) {
     return res.status(400).json({
@@ -232,7 +464,7 @@ const getEmployeeLeaveDetails = async (req, res) => {
   try {
     const pool = await getConnection();
     const request = pool.request();
-    request.input('EMP_ID', sql.Int, employeeId);  // Just use employeeId
+    request.input('EMP_ID', sql.Int, employeeId);
 
     const result = await request.query(`
       SELECT 
@@ -251,13 +483,29 @@ const getEmployeeLeaveDetails = async (req, res) => {
         la.RejectionRemark
       FROM LeaveApplication la
       LEFT JOIN LeaveType lt ON la.LeaveTypeId = lt.LeaveTypeId
-      WHERE la.EmployeeId = @EMP_ID;
+      WHERE la.EmployeeId = @EMP_ID
+      ORDER BY la.FromDate DESC
     `);
+
+    const leaves = result.recordset;
+
+    if (leaves.length === 0) {
+      return res.status(200).json({
+        success: true,
+        employeeId,
+        leaveDetails: []
+      });
+    }
+
+    const [parent, ...children] = leaves;
 
     res.status(200).json({
       success: true,
       employeeId,
-      leaveDetails: result.recordset
+      leaveDetails: {
+        parent,
+        children
+      }
     });
   } catch (error) {
     console.error('डेटा प्राप्त करने में त्रुटि:', error);
@@ -269,14 +517,10 @@ const getEmployeeLeaveDetails = async (req, res) => {
   }
 };
 
-
-
-
-
-
-module.exports = {createLeaveBalance,
-                  getLeaveBalance,
-                  deleteLeaveBalance,
-                  updateLeaveBalance,
-                  getEmployeeLeaveDetails
-                 };
+module.exports = {
+  createLeaveBalance,
+  getLeaveBalance,
+  deleteLeaveBalance,
+  updateLeaveBalance,
+  getEmployeeLeaveDetails
+};

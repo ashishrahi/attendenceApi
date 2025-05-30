@@ -109,7 +109,7 @@ const login = async (req, res) => {
         orgId: userLogin.ORG_ID,
         roles,
         permissions,
-        menus: userMenus
+        // menus: userMenus
       }
     });
 
