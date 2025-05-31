@@ -7,7 +7,7 @@ const config = {
   port: 9851,             
   database: "iDMS",
   options: {
-    encrypt: false,       
+    encrypt: false,        
     enableArithAbort: true,
   },
 };
