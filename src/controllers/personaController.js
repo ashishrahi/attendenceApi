@@ -2,6 +2,74 @@ const { getConnection, sql } = require("../config/database");
 const { encryptData } = require("../middleware/crypto");
 const { AccountCreationmail } = require("../middleware/emailservice");
 
+// const createPersona = async (req, res) => {
+//   try {
+//     const {
+//       userid,
+//       dept_id,
+//       desig_id,
+//       zone_id,
+//       ward_id,
+//       area_id,
+//       beat_id,
+//       gender_id,
+//       first_name,
+//       middle_name,
+//       last_name,
+//       father_name,
+//       mother_name,
+//       email,
+//       phone,
+//       address,
+//       dob,
+//       shiftid,
+//       breakid 
+//     } = req.body;
+//     const pool = await getConnection();
+//     console.log(req.body);
+    
+//     const result = await pool.request()
+//     .input('userid', sql.Int, userid)
+//     .input('dept_id', sql.Int, dept_id)
+//     .input('desig_id', sql.Int, desig_id)
+//     .input('zone_id', sql.Int, zone_id)
+//     .input('ward_id', sql.Int, ward_id)
+//     .input('area_id', sql.Int, area_id)
+//     .input('beat_id', sql.Int, beat_id)
+//     .input('gender_id', sql.Int, gender_id)
+//     .input('first_name', sql.NVarChar, first_name)
+//     .input('middle_name', sql.NVarChar, middle_name)
+//     .input('last_name', sql.NVarChar, last_name)
+//     .input('father_name', sql.NVarChar, father_name)
+//     .input('mother_name', sql.NVarChar, mother_name)
+//     .input('email', sql.NVarChar, email)
+//     .input('phone', sql.NVarChar, phone)
+//     .input('address', sql.NVarChar, address)
+//     .input('dob', sql.Date, dob)
+//     .input('shiftid', sql.Int, shiftid)
+//     .input('breakid', sql.Int, breakid)
+//       .query(`INSERT INTO [iDMS].[dbo].[d00_emptable]
+// (userid, dept_id, desig_id, zone_id, ward_id, area_id, beat_id, gender_id,
+//  first_name, middle_name, last_name, father_name, mother_name,
+//  email, phone, address, dob, shiftid,breakid)
+// VALUES (@userid, @dept_id, @desig_id, @zone_id, @ward_id, @area_id, @beat_id, @gender_id,
+//         @first_name, @middle_name, @last_name, @father_name, @mother_name,
+//         @email, @phone, @address, @dob, @shiftid,@breakid)
+// `);
+
+//     res.json({
+//       success: true,
+//       message: 'data inserted successfully'
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: error.message
+//     });
+//   }
+// };
+
 const createPersona = async (req, res) => {
   try {
     const {
@@ -24,45 +92,50 @@ const createPersona = async (req, res) => {
       dob,
       shiftid,
       breakid,
+      EmployeeTypeId     // ✅ New field added
     } = req.body;
-    const pool = await getConnection();
-    // console.log(req.body);
 
-    const result = await pool
-      .request()
-      .input("userid", sql.Int, userid)
-      .input("dept_id", sql.Int, dept_id)
-      .input("desig_id", sql.Int, desig_id)
-      .input("zone_id", sql.Int, zone_id)
-      .input("ward_id", sql.Int, ward_id)
-      .input("area_id", sql.Int, area_id)
-      .input("beat_id", sql.Int, beat_id)
-      .input("gender_id", sql.Int, gender_id)
-      .input("first_name", sql.NVarChar, first_name)
-      .input("middle_name", sql.NVarChar, middle_name)
-      .input("last_name", sql.NVarChar, last_name)
-      .input("father_name", sql.NVarChar, father_name)
-      .input("mother_name", sql.NVarChar, mother_name)
-      .input("email", sql.NVarChar, email)
-      .input("phone", sql.NVarChar, phone)
-      .input("address", sql.NVarChar, address)
-      .input("dob", sql.Date, dob)
-      .input("shiftid", sql.Int, shiftid)
-      .input("breakid", sql.Int, breakid)
-      .query(`INSERT INTO [iDMS].[dbo].[d00_emptable]
-(userid, dept_id, desig_id, zone_id, ward_id, area_id, beat_id, gender_id,
- first_name, middle_name, last_name, father_name, mother_name,
- email, phone, address, dob, shiftid,breakid)
-VALUES (@userid, @dept_id, @desig_id, @zone_id, @ward_id, @area_id, @beat_id, @gender_id,
-        @first_name, @middle_name, @last_name, @father_name, @mother_name,
-        @email, @phone, @address, @dob, @shiftid,@breakid)
-`);
+    const pool = await getConnection();
+    console.log(req.body);
+    
+    const result = await pool.request()
+      .input('userid', sql.Int, userid)
+      .input('dept_id', sql.Int, dept_id)
+      .input('desig_id', sql.Int, desig_id)
+      .input('zone_id', sql.Int, zone_id)
+      .input('ward_id', sql.Int, ward_id)
+      .input('area_id', sql.Int, area_id)
+      .input('beat_id', sql.Int, beat_id)
+      .input('gender_id', sql.Int, gender_id)
+      .input('first_name', sql.NVarChar, first_name)
+      .input('middle_name', sql.NVarChar, middle_name)
+      .input('last_name', sql.NVarChar, last_name)
+      .input('father_name', sql.NVarChar, father_name)
+      .input('mother_name', sql.NVarChar, mother_name)
+      .input('email', sql.NVarChar, email)
+      .input('phone', sql.NVarChar, phone)
+      .input('address', sql.NVarChar, address)
+      .input('dob', sql.Date, dob)
+      .input('shiftid', sql.Int, shiftid)
+      .input('breakid', sql.Int, breakid)
+      .input('EmployeeTypeId', sql.Int, EmployeeTypeId) // ✅ Added input
+      .query(`
+        INSERT INTO [iDMS].[dbo].[d00_emptable]
+        (userid, dept_id, desig_id, zone_id, ward_id, area_id, beat_id, gender_id,
+         first_name, middle_name, last_name, father_name, mother_name,
+         email, phone, address, dob, shiftid, breakid, EmployeeTypeId)
+        VALUES
+        (@userid, @dept_id, @desig_id, @zone_id, @ward_id, @area_id, @beat_id, @gender_id,
+         @first_name, @middle_name, @last_name, @father_name, @mother_name,
+         @email, @phone, @address, @dob, @shiftid, @breakid, @EmployeeTypeId)
+      `);
 
     res.json({
       success: true,
-      message: "data inserted successfully",
+      message: 'Data inserted successfully'
     });
   } catch (error) {
+    console.error('Error in createPersona:', error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -160,6 +233,97 @@ const deletepersona = async (req, res) => {
   }
 };
 
+// const updatePersona = async (req, res) => {
+//   try {
+//     const {
+//       userid,
+//       dept_id,
+//       desig_id,
+//       zone_id,
+//       ward_id,
+//       area_id,
+//       beat_id,
+//       gender_id,
+//       first_name,
+//       middle_name,
+//       last_name,
+//       father_name,
+//       mother_name,
+//       email,
+//       phone,
+//       address,
+//       dob,
+//       shiftid,
+//       breakid
+//     } = req.body;
+//     const pool = await getConnection();
+
+//     const {id} = req.params;
+//     console.log("id",id);
+//     console.log(req.body)
+    
+
+//     const result = await pool.request()
+//       .input('id', sql.Int, id)
+//       .input('userid', sql.Int, userid)
+//       .input('dept_id', sql.Int, dept_id)
+//       .input('desig_id', sql.Int, desig_id)
+//       .input('zone_id', sql.Int, zone_id)
+//       .input('ward_id', sql.Int, ward_id)
+//       .input('area_id', sql.Int, area_id)
+//       .input('beat_id', sql.Int, beat_id)
+//       .input('gender_id', sql.Int, gender_id)
+//       .input('first_name', sql.NVarChar, first_name)
+//       .input('middle_name', sql.NVarChar, middle_name)
+//       .input('last_name', sql.NVarChar, last_name)
+//       .input('father_name', sql.NVarChar, father_name)
+//       .input('mother_name', sql.NVarChar, mother_name)
+//       .input('email', sql.NVarChar, email)
+//       .input('phone', sql.NVarChar, phone)
+//       .input('address', sql.NVarChar, address)
+//       .input('dob', sql.Date, dob)
+//       .input('shiftid', sql.Int, shiftid)
+//       .input('breakid', sql.Int, breakid)
+//       .query(`
+//       UPDATE [iDMS].[dbo].[d00_emptable]
+//       SET 
+//         userid = @userid,
+//         dept_id = @dept_id,
+//         desig_id = @desig_id,
+//         zone_id = @zone_id,
+//         ward_id = @ward_id,
+//         area_id = @area_id,
+//         beat_id = @beat_id,
+//         gender_id = @gender_id,
+//         first_name = @first_name,
+//         middle_name = @middle_name,
+//         last_name = @last_name,
+//         father_name = @father_name,
+//         mother_name = @mother_name,
+//         email = @email,
+//         phone = @phone,
+//         address = @address,
+//         dob = @dob,
+//         shiftid = @shiftid,
+//         breakid = @breakid
+//       WHERE id = @id
+//     `);
+
+
+
+//     res.json({
+//       success: true,
+//       message: 'updated successfully'
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: error.message
+//     });
+//   }
+// };
+
 const updatePersona = async (req, res) => {
   try {
     const {
@@ -182,64 +346,69 @@ const updatePersona = async (req, res) => {
       dob,
       shiftid,
       breakid,
+      EmployeeTypeId 
     } = req.body;
+
     const pool = await getConnection();
-
     const { id } = req.params;
-    // console.log("id", id);
-    // console.log(req.body);
 
-    const result = await pool
-      .request()
-      .input("id", sql.Int, id)
-      .input("userid", sql.Int, userid)
-      .input("dept_id", sql.Int, dept_id)
-      .input("desig_id", sql.Int, desig_id)
-      .input("zone_id", sql.Int, zone_id)
-      .input("ward_id", sql.Int, ward_id)
-      .input("area_id", sql.Int, area_id)
-      .input("beat_id", sql.Int, beat_id)
-      .input("gender_id", sql.Int, gender_id)
-      .input("first_name", sql.NVarChar, first_name)
-      .input("middle_name", sql.NVarChar, middle_name)
-      .input("last_name", sql.NVarChar, last_name)
-      .input("father_name", sql.NVarChar, father_name)
-      .input("mother_name", sql.NVarChar, mother_name)
-      .input("email", sql.NVarChar, email)
-      .input("phone", sql.NVarChar, phone)
-      .input("address", sql.NVarChar, address)
-      .input("dob", sql.Date, dob)
-      .input("shiftid", sql.Int, shiftid)
-      .input("breakid", sql.Int, breakid).query(`
-      UPDATE [iDMS].[dbo].[d00_emptable]
-      SET 
-        userid = @userid,
-        dept_id = @dept_id,
-        desig_id = @desig_id,
-        zone_id = @zone_id,
-        ward_id = @ward_id,
-        area_id = @area_id,
-        beat_id = @beat_id,
-        gender_id = @gender_id,
-        first_name = @first_name,
-        middle_name = @middle_name,
-        last_name = @last_name,
-        father_name = @father_name,
-        mother_name = @mother_name,
-        email = @email,
-        phone = @phone,
-        address = @address,
-        dob = @dob,
-        shiftid = @shiftid,
-        breakid = @breakid
-      WHERE id = @id
-    `);
+    console.log("id", id);
+    console.log(req.body);
+
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .input('userid', sql.Int, userid)
+      .input('dept_id', sql.Int, dept_id)
+      .input('desig_id', sql.Int, desig_id)
+      .input('zone_id', sql.Int, zone_id)
+      .input('ward_id', sql.Int, ward_id)
+      .input('area_id', sql.Int, area_id)
+      .input('beat_id', sql.Int, beat_id)
+      .input('gender_id', sql.Int, gender_id)
+      .input('first_name', sql.NVarChar, first_name)
+      .input('middle_name', sql.NVarChar, middle_name)
+      .input('last_name', sql.NVarChar, last_name)
+      .input('father_name', sql.NVarChar, father_name)
+      .input('mother_name', sql.NVarChar, mother_name)
+      .input('email', sql.NVarChar, email)
+      .input('phone', sql.NVarChar, phone)
+      .input('address', sql.NVarChar, address)
+      .input('dob', sql.Date, dob)
+      .input('shiftid', sql.Int, shiftid)
+      .input('breakid', sql.Int, breakid)
+      .input('EmployeeTypeId', sql.Int, EmployeeTypeId) 
+      .query(`
+        UPDATE [iDMS].[dbo].[d00_emptable]
+        SET 
+          userid = @userid,
+          dept_id = @dept_id,
+          desig_id = @desig_id,
+          zone_id = @zone_id,
+          ward_id = @ward_id,
+          area_id = @area_id,
+          beat_id = @beat_id,
+          gender_id = @gender_id,
+          first_name = @first_name,
+          middle_name = @middle_name,
+          last_name = @last_name,
+          father_name = @father_name,
+          mother_name = @mother_name,
+          email = @email,
+          phone = @phone,
+          address = @address,
+          dob = @dob,
+          shiftid = @shiftid,
+          breakid = @breakid,
+          EmployeeTypeId = @EmployeeTypeId 
+        WHERE id = @id
+      `);
 
     res.json({
       success: true,
-      message: "updated successfully",
+      message: 'Updated successfully'
     });
   } catch (error) {
+    console.error('Error in updatePersona:', error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -247,6 +416,7 @@ const updatePersona = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   createPersona,

@@ -34,8 +34,9 @@ const LeaveTypeRoutes = require('./routes/LeaveTypeRoutes');
 const LeaveRequestRoutes = require('./routes/LeaveRequestRoutes');
 const LeaveBalanceRoutes = require('./routes/LeaveBalanceRoutes');
 const LeaveCategoryRoutes = require('./routes/LeaveCategoryRoutes');
-const HelpCreationRoutes = require('./routes/HelpCreationRoutes')
-
+const EmployeeTypeRoutes = require('./routes/EmployeeTypeRoutes');
+const EmployeeMapLeaveTypeController = require('./routes/EmployeeMapLeaveTypeRoutes');
+const jwt = require('jsonwebtoken');
 const app = express();
 const server = http.createServer(app);
 
@@ -81,7 +82,8 @@ app.use('/api/leavetype', LeaveTypeRoutes);
 app.use('/api/leaveapp', LeaveRequestRoutes);
 app.use('/api/leavebalance', LeaveBalanceRoutes);
 app.use('/api/leavecategory', LeaveCategoryRoutes);
-app.use('/api/helpcreate', HelpCreationRoutes);
+app.use('/api/employeetype', EmployeeTypeRoutes);
+app.use('/api/employeemap', EmployeeMapLeaveTypeController);
 
 
 // Swagger setup

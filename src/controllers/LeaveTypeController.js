@@ -30,7 +30,6 @@ const createLeaveType = async (req, res) => {
   }
 };
 
-
 const getLeaveTypes = async (req, res) => {
   try {
     const pool = await getConnection();

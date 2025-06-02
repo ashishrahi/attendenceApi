@@ -20,7 +20,7 @@ const LeaveRequestController = require('../controllers/LeaveRequestController')
  */
 router.post('/create', LeaveRequestController.applyLeave);
 router.put('/update/:id', LeaveRequestController.updateLeaveStatus);
-router.get('/all', LeaveRequestController.getAllLeaveApplications);
+router.post('/all/:id', LeaveRequestController.getAllLeaveApplications);
 router.get('/:id', LeaveRequestController.getLeaveApplicationById);
 router.get('/getmyleave/:id', LeaveRequestController.getMyLeaveApplications);
 router.get('/getpendingleave/:id', LeaveRequestController.getPendingLeaveApplications);

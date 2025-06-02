@@ -25,7 +25,4 @@ router.post('/out', ReportController.OutReports);
 router.post('/breakattendance', ReportController.BreakAttendance);
 router.post('/punch-correction', ReportController.PunchCorrection);
 
-
-
-
 module.exports = router;

@@ -1550,6 +1550,246 @@ const OutReports = async (req, res) => {
 
 // 45 break api
 
+// const BreakAttendance = async (req, res) => {
+//   const { employeeId, dateFrom, dateTo } = req.body;
+  
+//   // Validate date range
+//   if (new Date(dateFrom) > new Date(dateTo)) {
+//     return res.status(400).json({ 
+//       isSuccess: false, 
+//       message: "Invalid date range - dateFrom must be before dateTo" 
+//     });
+//   }
+
+//   try {
+//     const pool = await getConnection();
+
+//     // 1. Validate employee
+//     const employeeQuery = `
+//       SELECT 
+//         e.userid, 
+//         CONCAT(e.first_name, ' ', ISNULL(e.middle_name, ''), ' ', e.last_name) AS empname
+//       FROM d00_emptable e
+//       WHERE e.userid = @employeeId`;
+
+//     const employeeResult = await pool
+//       .request()
+//       .input("employeeId", sql.VarChar(50), employeeId)
+//       .query(employeeQuery);
+
+//     if (!employeeResult.recordset.length) {
+//       return res.status(404).json({ isSuccess: false, message: "Employee not found" });
+//     }
+
+//     const employee = employeeResult.recordset[0];
+
+//     // 2. Fetch attendance records
+//     const attendanceQuery = `
+//       SELECT 
+//         UserID,
+//         AttDateTime,
+//         verifyMode,
+//         io_mode
+//       FROM UserAttendance
+//       WHERE UserID = @employeeId
+//         AND CAST(AttDateTime AS DATE) BETWEEN @dateFrom AND @dateTo
+//       ORDER BY AttDateTime
+//     `;
+
+//     const attendanceResult = await pool
+//       .request()
+//       .input("employeeId", sql.VarChar(50), employeeId)
+//       .input("dateFrom", sql.Date, dateFrom)
+//       .input("dateTo", sql.Date, dateTo)
+//       .query(attendanceQuery);
+
+//     const totalPunches = attendanceResult.recordset.length;
+
+//     // 3. Process records
+//     const outDetails = [];
+//     let totalOutSeconds = 0;
+//     let totalWorkingSeconds = 0;
+//     let totalHoursESeconds = 0;
+
+//     // Initialize dailyPunches object to track data per date
+//     const dailyPunches = {};
+//     attendanceResult.recordset.forEach(punch => {
+//       const dateKey = moment.utc(punch.AttDateTime).format("YYYY-MM-DD");
+//       if (!dailyPunches[dateKey]) {
+//         dailyPunches[dateKey] = {
+//           firstIn: null,
+//           lastOut: null,
+//           punches: [],
+//           outSeconds: 0
+//         };
+//       }
+//       dailyPunches[dateKey].punches.push(punch);
+//     });
+
+//     // Sort dates chronologically
+//     const sortedDates = Object.keys(dailyPunches).sort((a, b) => new Date(a) - new Date(b));
+
+//     // First pass: Calculate out durations for each date
+//     sortedDates.forEach(dateKey => {
+//       const dayPunches = dailyPunches[dateKey].punches;
+//       let dateOutSeconds = 0;
+
+//       // Calculate OUT durations for this date
+//       for (let i = 0; i < dayPunches.length - 1; i++) {
+//         const current = dayPunches[i];
+//         const next = dayPunches[i + 1];
+
+//         if (current.io_mode === '1' && next.io_mode === '0') {
+//           const outTime = moment.utc(current.AttDateTime);
+//           const inTime = moment.utc(next.AttDateTime);
+//           const duration = moment.duration(inTime.diff(outTime));
+//           dateOutSeconds += duration.asSeconds();
+//         }
+//       }
+
+//       dailyPunches[dateKey].outSeconds = dateOutSeconds;
+//       dailyPunches[dateKey].outDuration = moment.utc(dateOutSeconds * 1000).format("HH:mm:ss");
+//       totalOutSeconds += dateOutSeconds;
+
+//       // Find first IN and last OUT for working hours calculation
+//       dailyPunches[dateKey].firstIn = dayPunches.find(p => p.io_mode === '0');
+//       const outPunches = dayPunches.filter(p => p.io_mode === '1');
+//       dailyPunches[dateKey].lastOut = outPunches.length > 0 ? outPunches[outPunches.length - 1] : null;
+
+//       // Calculate working hours if both firstIn and lastOut exist
+//       if (dailyPunches[dateKey].firstIn && dailyPunches[dateKey].lastOut) {
+//         const firstInTime = moment.utc(dailyPunches[dateKey].firstIn.AttDateTime);
+//         const lastOutTime = moment.utc(dailyPunches[dateKey].lastOut.AttDateTime);
+//         const workingDuration = moment.duration(lastOutTime.diff(firstInTime));
+//         dailyPunches[dateKey].workingSeconds = workingDuration.asSeconds();
+//         dailyPunches[dateKey].workingHours = workingDuration;
+//         totalWorkingSeconds += workingDuration.asSeconds();
+//       }
+//     });
+
+//     // Second pass: Calculate HoursE and BalanceHours with carry forward
+//     let carryForwardSeconds = 0; // Track positive HoursE to carry forward
+    
+//     sortedDates.forEach(dateKey => {
+//       const standardBreakSeconds = 45 * 60; // 45 minutes in seconds
+//       const outSeconds = dailyPunches[dateKey].outSeconds || 0;
+      
+//       // Calculate HoursE: (Standard break - actual break) plus any carry forward
+//       let hoursESeconds = (standardBreakSeconds - outSeconds) + carryForwardSeconds;
+      
+//       // Reset carry forward after applying it
+//       carryForwardSeconds = 0;
+      
+//       // If positive HoursE, carry it forward to next day and set current to 0
+//       if (hoursESeconds > 0) {
+//         carryForwardSeconds = hoursESeconds;
+//         hoursESeconds = 0;
+//       }
+      
+//       // Store HoursE in seconds and formatted
+//       dailyPunches[dateKey].hoursESeconds = hoursESeconds;
+//       dailyPunches[dateKey].hoursE = formatDurationWithSign(hoursESeconds);
+//       totalHoursESeconds += hoursESeconds;
+      
+//       // Calculate BalanceHours: WorkingHours - absolute HoursE
+//       const workingSeconds = dailyPunches[dateKey]?.workingSeconds || 0;
+//       const balanceSeconds = workingSeconds - Math.abs(hoursESeconds);
+//       dailyPunches[dateKey].balanceHours = formatDurationWithSign(balanceSeconds);
+//     });
+
+//     // Helper function to format duration with sign
+//     function formatDurationWithSign(totalSeconds) {
+//       if (totalSeconds === 0) return "00:00:00";
+//       const sign = totalSeconds < 0 ? "-" : "";
+//       const absSeconds = Math.abs(totalSeconds);
+//       const duration = moment.duration(absSeconds, 'seconds');
+//       return sign + 
+//         duration.hours().toString().padStart(2, "0") + ":" + 
+//         duration.minutes().toString().padStart(2, "0") + ":" + 
+//         duration.seconds().toString().padStart(2, "0");
+//     }
+
+//     // Process OUT-IN pairs for the detailed report
+//     for (let i = 0; i < attendanceResult.recordset.length - 1; i++) {
+//       const current = attendanceResult.recordset[i];
+//       const next = attendanceResult.recordset[i + 1];
+
+//       if (current.io_mode === '1' && next.io_mode === '0') {
+//         const outTime = moment.utc(current.AttDateTime);
+//         const inTime = moment.utc(next.AttDateTime);
+//         const duration = moment.duration(inTime.diff(outTime));
+//         const dateKey = outTime.format("YYYY-MM-DD");
+
+//         const workingHours = dailyPunches[dateKey]?.workingHours;
+//         const workingHoursFormatted = workingHours ? 
+//           `${workingHours.hours().toString().padStart(2, "0")}:${workingHours.minutes().toString().padStart(2, "0")}:${workingHours.seconds().toString().padStart(2, "0")}` : 
+//           "N/A";
+
+//         outDetails.push({
+//           "S.No.": outDetails.length + 1,
+//           "Employee": employee.empname,
+//           "EmpCode": employee.userid,
+//           "Date": outTime.format("DD-MMM-YYYY"),
+//           "FirstIn": dailyPunches[dateKey]?.firstIn ? 
+//                      moment.utc(dailyPunches[dateKey].firstIn.AttDateTime).format("HH:mm:ss") : "N/A",
+//           "LastOut": dailyPunches[dateKey]?.lastOut ? 
+//                      moment.utc(dailyPunches[dateKey].lastOut.AttDateTime).format("HH:mm:ss") : "N/A",
+//           "WorkingHours": workingHoursFormatted,
+//           "HoursE": dailyPunches[dateKey]?.hoursE || "00:00:00",
+//           "BalanceHours": dailyPunches[dateKey]?.balanceHours || "00:00:00",
+//           "Out Time": outTime.format("HH:mm:ss"),
+//           "In Time": inTime.format("HH:mm:ss"),
+//           "Out Duration": `${duration.hours().toString().padStart(2, "0")}:${duration.minutes().toString().padStart(2, "0")}:${duration.seconds().toString().padStart(2, "0")}`,
+//           "Total Out Duration": dailyPunches[dateKey]?.outDuration || "00:00:00",
+//           "Attendance From": current.verifyMode
+//         });
+//       }
+//     }
+
+//     // Calculate totals
+//     const totalOutDuration = moment.utc(totalOutSeconds * 1000).format("HH:mm:ss");
+//     const totalWorkingDuration = moment.utc(totalWorkingSeconds * 1000).format("HH:mm:ss");
+//     const totalOutDays = (totalOutSeconds / (10 * 3600)).toFixed(2);
+//     const totalHoursE = formatDurationWithSign(totalHoursESeconds);
+//     const totalBalanceSeconds = totalWorkingSeconds - Math.abs(totalHoursESeconds);
+//     const totalBalanceMinutes = totalBalanceSeconds / 60;
+//     const totalBalanceHours = formatDurationWithSign(totalBalanceSeconds);
+//     const perdaywork = (totalBalanceMinutes / 600).toFixed(2); 
+
+//     // Prepare response
+//     const response = {
+//       isSuccess: true,
+//       message: "Out details report generated successfully",
+//       data: {
+//         employee: `${employee.empname} | ${employee.userid}`,
+//         dateRange: {
+//           from: moment.utc(dateFrom).format("DD-MMM-YYYY"),
+//           to: moment.utc(dateTo).format("DD-MMM-YYYY")
+//         },
+//         totalPunches: totalPunches,
+//         outDetails: outDetails,
+//         totals: {
+//           perdaywork: perdaywork,
+//           outDays: totalOutDays,
+//           outHour: totalOutDuration,
+//           workingHours: totalWorkingDuration,
+//           hoursE: totalHoursE,
+//           balanceHours: totalBalanceHours
+//         }
+//       }
+//     };
+
+//     res.json(response);
+//   } catch (err) {
+//     console.error("Error in BreakAttendance:", err);
+//     res.status(500).json({
+//       isSuccess: false,
+//       message: `Server error: ${err.message}`,
+//     });
+//   }
+// };
+
+// 45 break api
 const BreakAttendance = async (req, res) => {
   const { employeeId, dateFrom, dateTo } = req.body;
   
@@ -1788,6 +2028,7 @@ const BreakAttendance = async (req, res) => {
     });
   }
 };
+
 
 
 
