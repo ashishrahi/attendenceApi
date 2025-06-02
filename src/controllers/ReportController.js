@@ -1,10 +1,10 @@
-const { getConnection } = require('../config/database');
-const moment = require('moment');
-const PDFDocument = require('pdfkit');
-const getStream = require('get-stream');
-const fs = require('fs');
-const path = require('path');
-const ExcelJS = require('exceljs');
+const { getConnection, sql } = require("../config/database");
+const moment = require("moment");
+const PDFDocument = require("pdfkit");
+const getStream = require("get-stream");
+const fs = require("fs");
+const path = require("path");
+const ExcelJS = require("exceljs");
 
 const fetchEmployees = async (pool, employeeId) => {
   let query = `SELECT 
@@ -26,7 +26,6 @@ JOIN
   return result.recordset;
 };
 
-
 const handleMonthlyReport = async (req, res) => {
   try {
     const pool = await getConnection();
@@ -38,23 +37,22 @@ const handleMonthlyReport = async (req, res) => {
     const dateMap = {};
     let dayIndex = 1;
 
-
     while (start <= end) {
-      const dateStr = start.format('YYYY-MM-DD');
+      const dateStr = start.format("YYYY-MM-DD");
       const label = `attDate${dayIndex}`;
       days.push(label);
       dateMap[label] = dateStr;
-      start.add(1, 'day');
+      start.add(1, "day");
       dayIndex++;
     }
 
     const employees = await fetchEmployees(pool, employeeId);
 
     let attendanceData = [];
-    const result = await pool.request()
-      .input('fromDate', fromDate)
-      .input('toDate', toDate)
-      .query(`
+    const result = await pool
+      .request()
+      .input("fromDate", fromDate)
+      .input("toDate", toDate).query(`
           SELECT 
             e.userid, 
             ua_summary.AttDate,
@@ -76,32 +74,42 @@ const handleMonthlyReport = async (req, res) => {
         `);
     attendanceData = result.recordset;
 
-
-
-    const holidayQuery = await pool.request()
-      .input('fromDate', fromDate)
-      .input('toDate', toDate)
-      .query(`
+    const holidayQuery = await pool
+      .request()
+      .input("fromDate", fromDate)
+      .input("toDate", toDate).query(`
         SELECT Date 
         FROM holiDaySchedule 
         WHERE CAST(Date AS DATE) BETWEEN @fromDate AND @toDate 
           AND IsActive = 1
       `);
-    const holidays = holidayQuery.recordset.map(h => moment(h.Date).format('YYYY-MM-DD'));
+    const holidays = holidayQuery.recordset.map((h) =>
+      moment(h.Date).format("YYYY-MM-DD")
+    );
 
     const attMap = {};
-    attendanceData.forEach(row => {
-      const date = moment.utc(row.AttDateTime || row.AttDate).format('YYYY-MM-DD');
+    attendanceData.forEach((row) => {
+      const date = moment
+        .utc(row.AttDateTime || row.AttDate)
+        .format("YYYY-MM-DD");
       const key = `${row.UserID || row.userid}_${date}`;
       attMap[key] = {
-        FirstInTime: row.FirstInTime ? moment.utc(row.FirstInTime).format('HH:mm') : '',
-        LastOutTime: row.LastOutTime ? moment.utc(row.LastOutTime).format('HH:mm') : '',
-        LastPunch: row.LastPunch ? moment.utc(row.LastPunch).format('HH:mm') : ''
+        FirstInTime: row.FirstInTime
+          ? moment.utc(row.FirstInTime).format("HH:mm")
+          : "",
+        LastOutTime: row.LastOutTime
+          ? moment.utc(row.LastOutTime).format("HH:mm")
+          : "",
+        LastPunch: row.LastPunch
+          ? moment.utc(row.LastPunch).format("HH:mm")
+          : "",
       };
     });
 
-    const reportData = employees.map(emp => {
-      const fullName = [emp.first_name, emp.middle_name, emp.last_name].filter(Boolean).join(' ');
+    const reportData = employees.map((emp) => {
+      const fullName = [emp.first_name, emp.middle_name, emp.last_name]
+        .filter(Boolean)
+        .join(" ");
       const row = {
         userid: emp.userid,
         username: fullName,
@@ -110,32 +118,31 @@ const handleMonthlyReport = async (req, res) => {
         P: 0,
         A: 0,
         EL: 0,
-        LC: 0
+        LC: 0,
       };
 
-      days.forEach(label => {
+      days.forEach((label) => {
         const date = dateMap[label];
         const key = `${emp.userid}_${date}`;
         const dayOfWeek = moment(date).day();
 
         if (dayOfWeek === 0) {
-          row[label] = 'S';
+          row[label] = "S";
           row.S += 1;
         } else if (holidays.includes(date)) {
-          row[label] = 'H';
+          row[label] = "H";
           row.H += 1;
         } else if (attMap[key]) {
           const att = attMap[key];
 
-          if (typeof att === 'object') {
+          if (typeof att === "object") {
             const inTime = att.FirstInTime;
             const outTime = att.LastOutTime;
             const LastPunchu = att.LastPunch;
-            console.log(att)
+            console.log(att);
 
             const shiftIn = emp.intime;
             const shiftOut = emp.outtime;
-
 
             const hhintime = moment.utc(inTime, "HH:mm").format("HH:mm"),
               hhouttime = moment.utc(outTime, "HH:mm").format("HH:mm"),
@@ -143,24 +150,26 @@ const handleMonthlyReport = async (req, res) => {
               hhshiftout = moment.utc(shiftOut, "HH:mm").format("HH:mm"),
               hhlastpunch = moment.utc(LastPunchu, "HH:mm").format("HH:mm");
 
-
             if (hhintime && hhintime > hhshiftin) {
               row.LC += 1;
             }
 
-
-            if (hhlastpunch && (hhouttime == hhlastpunch) && hhouttime < hhshiftout) {
+            if (
+              hhlastpunch &&
+              hhouttime == hhlastpunch &&
+              hhouttime < hhshiftout
+            ) {
               row.EL += 1;
             }
 
-            row[label] = mode === 'withtime' ? attMap[key] : 'P';
+            row[label] = mode === "withtime" ? attMap[key] : "P";
           } else {
-            row[label] = 'P';
+            row[label] = "P";
           }
 
           row.P += 1;
         } else {
-          row[label] = 'A';
+          row[label] = "A";
           row.A += 1;
         }
       });
@@ -168,20 +177,23 @@ const handleMonthlyReport = async (req, res) => {
       return row;
     });
 
-
     // ✅ Return base64-encoded PDF
-    if (type === 'pdf') {
-      const doc = new PDFDocument({ margin: 20, size: 'A4', layout: 'landscape' });
+    if (type === "pdf") {
+      const doc = new PDFDocument({
+        margin: 20,
+        size: "A4",
+        layout: "landscape",
+      });
       const buffers = [];
 
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => {
         const pdfData = Buffer.concat(buffers);
-        const base64PDF = pdfData.toString('base64');
+        const base64PDF = pdfData.toString("base64");
 
         res.status(200).json({
           isSuccess: true,
-          message: 'PDF generated successfully',
+          message: "PDF generated successfully",
           base64: base64PDF,
         });
       });
@@ -192,71 +204,99 @@ const handleMonthlyReport = async (req, res) => {
       const dayCount = days.length;
       const colWidth = Math.floor(dynamicWidth / dayCount) + 8;
 
-      doc.fillColor('#0A5275').fontSize(16).font('Helvetica-Bold').text('Monthly Attendance Report', { align: 'center' });
+      doc
+        .fillColor("#0A5275")
+        .fontSize(16)
+        .font("Helvetica-Bold")
+        .text("Monthly Attendance Report", { align: "center" });
       doc.moveDown(0.3);
-      doc.fillColor('black').fontSize(10).text(`From: ${fromDate} To: ${toDate}`, { align: 'center' });
+      doc
+        .fillColor("black")
+        .fontSize(10)
+        .text(`From: ${fromDate} To: ${toDate}`, { align: "center" });
       doc.moveDown(1);
 
       // Table headers
       let x = 20;
       let y = doc.y;
 
-      doc.font('Helvetica-Bold').fontSize(8);
+      doc.font("Helvetica-Bold").fontSize(8);
 
-      doc.rect(x, y, 30, 25).fillAndStroke('#D6EAF8', '#000').fillColor('black');
-      doc.text('UserID', x + 2, y + 6);
+      doc
+        .rect(x, y, 30, 25)
+        .fillAndStroke("#D6EAF8", "#000")
+        .fillColor("black");
+      doc.text("UserID", x + 2, y + 6);
       x += 30;
 
-      doc.rect(x, y, 80, 25).fillAndStroke('#D6EAF8', '#000').fillColor('black');
-      doc.text('Name', x + 5, y + 6);
+      doc
+        .rect(x, y, 80, 25)
+        .fillAndStroke("#D6EAF8", "#000")
+        .fillColor("black");
+      doc.text("Name", x + 5, y + 6);
       x += 80;
 
       days.forEach((day, i) => {
         const dayNum = i + 1;
-        doc.rect(x, y, colWidth, 25).fillAndStroke('#AED6F1', '#000').fillColor('black');
+        doc
+          .rect(x, y, colWidth, 25)
+          .fillAndStroke("#AED6F1", "#000")
+          .fillColor("black");
         if (colWidth < 18) {
           doc.save();
-          doc.text(dayNum.toString(), x + 6, y + 20, { width: 20, align: 'left' });
+          doc.text(dayNum.toString(), x + 6, y + 20, {
+            width: 20,
+            align: "left",
+          });
           doc.restore();
         } else {
-          doc.text(dayNum.toString(), x + 2, y + 6, { width: colWidth - 4, align: 'center' });
+          doc.text(dayNum.toString(), x + 2, y + 6, {
+            width: colWidth - 4,
+            align: "center",
+          });
         }
         x += colWidth;
       });
 
       y += 25;
 
-      reportData.forEach(emp => {
+      reportData.forEach((emp) => {
         x = 20;
         if (y > 550) {
-          doc.addPage({ layout: 'landscape' });
+          doc.addPage({ layout: "landscape" });
           y = 30;
         }
 
-        doc.fillColor('black').font('Helvetica').fontSize(6);
+        doc.fillColor("black").font("Helvetica").fontSize(6);
 
         doc.rect(x, y, 30, 20).stroke();
-        doc.text(emp.userid.toString(), x + 2, y + 4, { width: 28, align: 'left' });
+        doc.text(emp.userid.toString(), x + 2, y + 4, {
+          width: 28,
+          align: "left",
+        });
         x += 30;
 
         doc.rect(x, y, 80, 20).stroke();
-        doc.text(emp.username, x + 2, y + 4, { width: 78, align: 'left' });
+        doc.text(emp.username, x + 2, y + 4, { width: 78, align: "left" });
         x += 80;
 
-        days.forEach(day => {
+        days.forEach((day) => {
           const value = emp[day];
-          let display = '';
+          let display = "";
 
-          if (mode === 'withtime' && typeof value === 'object') {
-            const inTime = value.FirstInTime || '--';
-            const outTime = value.LastOutTime || '--';
+          if (mode === "withtime" && typeof value === "object") {
+            const inTime = value.FirstInTime || "--";
+            const outTime = value.LastOutTime || "--";
             display = `${inTime}-${outTime}`;
           } else {
-            display = value || '-';
+            display = value || "-";
           }
 
           doc.rect(x, y, colWidth, 20).stroke();
-          doc.text(display, x + 1, y + 4, { width: colWidth - 2, align: 'center' });
+          doc.text(display, x + 1, y + 4, {
+            width: colWidth - 2,
+            align: "center",
+          });
           x += colWidth;
         });
 
@@ -264,32 +304,37 @@ const handleMonthlyReport = async (req, res) => {
       });
 
       doc.end();
-    }
-    else if (type === 'excel') {
+    } else if (type === "excel") {
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Monthly Attendance Report', {
+      const worksheet = workbook.addWorksheet("Monthly Attendance Report", {
         pageSetup: {
           paperSize: 9, // A4 paper
-          orientation: 'landscape' // Landscape orientation
-        }
+          orientation: "landscape", // Landscape orientation
+        },
       });
 
       // Title
-      worksheet.mergeCells('A1:Z1');
-      worksheet.getCell('A1').value = 'Monthly Attendance Report';
-      worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getCell('A1').font = { bold: true, size: 16 };
+      worksheet.mergeCells("A1:Z1");
+      worksheet.getCell("A1").value = "Monthly Attendance Report";
+      worksheet.getCell("A1").alignment = {
+        vertical: "middle",
+        horizontal: "center",
+      };
+      worksheet.getCell("A1").font = { bold: true, size: 16 };
 
       // Date Range
-      worksheet.mergeCells('A2:Z2');
-      worksheet.getCell('A2').value = `From: ${fromDate} To: ${toDate}`;
-      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getCell('A2').font = { size: 10 };
+      worksheet.mergeCells("A2:Z2");
+      worksheet.getCell("A2").value = `From: ${fromDate} To: ${toDate}`;
+      worksheet.getCell("A2").alignment = {
+        vertical: "middle",
+        horizontal: "center",
+      };
+      worksheet.getCell("A2").font = { size: 10 };
 
       // Table Header
       const headerColumns = [
-        { header: 'UserID', width: 10, alignment: 'left' },
-        { header: 'Name', width: 20, alignment: 'left' }
+        { header: "UserID", width: 10, alignment: "left" },
+        { header: "Name", width: 20, alignment: "left" },
       ];
 
       // Add day columns
@@ -298,7 +343,7 @@ const handleMonthlyReport = async (req, res) => {
         headerColumns.push({
           header: dayNum.toString(),
           width: 8,
-          alignment: 'center'
+          alignment: "center",
         });
       });
 
@@ -306,28 +351,28 @@ const handleMonthlyReport = async (req, res) => {
       headerColumns.forEach((col, idx) => {
         worksheet.getColumn(idx + 1).width = col.width;
         worksheet.getCell(3, idx + 1).value = col.header;
-        worksheet.getCell(3, idx + 1).alignment = { vertical: 'middle', horizontal: col.alignment };
+        worksheet.getCell(3, idx + 1).alignment = {
+          vertical: "middle",
+          horizontal: col.alignment,
+        };
         worksheet.getCell(3, idx + 1).font = { bold: true, size: 10 };
       });
 
       // Add data rows
       reportData.forEach((emp, rowIndex) => {
-        const row = [
-          emp.userid.toString(),
-          emp.username
-        ];
+        const row = [emp.userid.toString(), emp.username];
 
         // Add data for each day
-        days.forEach(day => {
+        days.forEach((day) => {
           const value = emp[day];
-          let display = '';
+          let display = "";
 
-          if (mode === 'withtime' && typeof value === 'object') {
-            const inTime = value.FirstInTime || '--';
-            const outTime = value.LastOutTime || '--';
+          if (mode === "withtime" && typeof value === "object") {
+            const inTime = value.FirstInTime || "--";
+            const outTime = value.LastOutTime || "--";
             display = `${inTime}-${outTime}`;
           } else {
-            display = value || '-';
+            display = value || "-";
           }
 
           row.push(display);
@@ -338,7 +383,7 @@ const handleMonthlyReport = async (req, res) => {
         const rowIdx = rowIndex + 4;
         worksheet.getRow(rowIdx).eachCell((cell, colNumber) => {
           const column = headerColumns[colNumber - 1];
-          cell.alignment = { vertical: 'middle', horizontal: column.alignment };
+          cell.alignment = { vertical: "middle", horizontal: column.alignment };
         });
       });
 
@@ -346,28 +391,26 @@ const handleMonthlyReport = async (req, res) => {
       const buffer = await workbook.xlsx.writeBuffer();
 
       // Convert buffer to Base64
-      const base64Excel = buffer.toString('base64');
+      const base64Excel = buffer.toString("base64");
 
       // Send Base64 response
       res.status(200).json({
         isSuccess: true,
-        message: 'Excel report generated successfully',
-        base64: base64Excel
+        message: "Excel report generated successfully",
+        base64: base64Excel,
       });
-    }
-    else {
+    } else {
       res.status(200).json({
         isSuccess: true,
-        message: 'Monthly report fetched successfully',
-        data: reportData
+        message: "Monthly report fetched successfully",
+        data: reportData,
       });
     }
-
   } catch (error) {
     res.status(500).json({
       isSuccess: false,
       message: `Error in fetching monthly report: ${error.message}`,
-      data: []
+      data: [],
     });
   }
 };
@@ -375,19 +418,29 @@ const handleMonthlyReport = async (req, res) => {
 const handleDailyReport = async (req, res) => {
   try {
     const pool = await getConnection();
-    const { date, employeeId, dept_id, type, zone_id, ward_id, area_id, beat_id } = req.body;
+    const {
+      date,
+      employeeId,
+      dept_id,
+      type,
+      zone_id,
+      ward_id,
+      area_id,
+      beat_id,
+    } = req.body;
 
-    const day = moment(date || new Date()).format('YYYY-MM-DD');
+    const day = moment(date || new Date()).format("YYYY-MM-DD");
 
     // 👇 Build WHERE clause with multiple optional filters
     const filters = [];
-    if (employeeId && employeeId !== -1) filters.push(`userid = '${employeeId}'`);
+    if (employeeId && employeeId !== -1)
+      filters.push(`userid = '${employeeId}'`);
     if (dept_id) filters.push(`dept_id = '${dept_id}'`);
     if (zone_id) filters.push(`zone_id = '${zone_id}'`);
     if (ward_id) filters.push(`ward_id = '${ward_id}'`);
     if (area_id) filters.push(`area_id = '${area_id}'`);
     if (beat_id) filters.push(`beat_id = '${beat_id}'`);
-    const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
 
     const employeesQuery = `
   SELECT userid, 
@@ -416,11 +469,12 @@ const handleDailyReport = async (req, res) => {
       WHERE CAST(ua.AttDateTime AS DATE) = '${day}'
       ORDER BY ua.UserID, ua.AttDateTime
     `;
-    const attendanceData = (await pool.request().query(attendanceQuery)).recordset;
+    const attendanceData = (await pool.request().query(attendanceQuery))
+      .recordset;
     console.log("attendanceData", attendanceData);
     const attendanceMap = {};
 
-    attendanceData.forEach(row => {
+    attendanceData.forEach((row) => {
       const { UserID, AttDateTime, io_mode } = row;
       if (!attendanceMap[UserID]) attendanceMap[UserID] = [];
       attendanceMap[UserID].push({ time: moment(AttDateTime), mode: io_mode });
@@ -431,44 +485,53 @@ const handleDailyReport = async (req, res) => {
       FROM holiDaySchedule 
       WHERE Date = '${day}' AND IsActive = 1
     `;
-    const isHoliday = (await pool.request().query(holidayQuery)).recordset.length > 0;
+    const isHoliday =
+      (await pool.request().query(holidayQuery)).recordset.length > 0;
     const isSunday = moment(day).day() === 0;
 
     const result = [];
 
-    employees.forEach(emp => {
+    employees.forEach((emp) => {
       const logs = attendanceMap[emp.userid] || [];
-      let status = 'A';
+      let status = "A";
       let FirstInTime = null;
       let LastOutTime = null;
       let lastpunch = null;
       let totalMinutes = 0;
 
       if (logs.length > 0) {
-        status = 'P';
+        status = "P";
         console.log("logs.length ", logs);
         lastpunch = moment.utc(logs[logs.length - 1].time).format("HH:mm:ss");
 
         const inOutPairs = [];
         for (let i = 0; i < logs.length - 1; i++) {
           if (logs[i].mode == 0 && logs[i + 1].mode == 1) {
-            console.log("([logs[i].time, logs[i + 1].time])", ([logs[i].time, logs[i + 1].time]));
+            console.log("([logs[i].time, logs[i + 1].time])", [
+              logs[i].time,
+              logs[i + 1].time,
+            ]);
             inOutPairs.push([logs[i].time, logs[i + 1].time]);
             i++;
           }
         }
-        console.log("inOutPairs", inOutPairs);
+        // console.log("inOutPairs", inOutPairs);
 
         if (inOutPairs.length > 0) {
-          totalMinutes = inOutPairs.reduce((acc, [inT, outT]) => acc + outT.diff(inT, 'minutes'), 0);
-          FirstInTime = moment.utc(inOutPairs[0][0]).format('HH:mm:ss');
-          LastOutTime = moment.utc(inOutPairs[inOutPairs.length - 1][1]).format('HH:mm:ss');
+          totalMinutes = inOutPairs.reduce(
+            (acc, [inT, outT]) => acc + outT.diff(inT, "minutes"),
+            0
+          );
+          FirstInTime = moment.utc(inOutPairs[0][0]).format("HH:mm:ss");
+          LastOutTime = moment
+            .utc(inOutPairs[inOutPairs.length - 1][1])
+            .format("HH:mm:ss");
         }
       }
 
-      if (isSunday) status = 'S';
-      else if (isHoliday) status = 'H';
-      else if (logs.length === 0) status = 'A';
+      if (isSunday) status = "S";
+      else if (isHoliday) status = "H";
+      else if (logs.length === 0) status = "A";
       console.log("totalMinutes", totalMinutes);
 
       const workingHours = totalMinutes
@@ -478,7 +541,7 @@ const handleDailyReport = async (req, res) => {
 
       result.push({
         userid: emp.userid,
-        empname: emp.empname.trim().replace(/\s+/g, ' '),
+        empname: emp.empname.trim().replace(/\s+/g, " "),
         date: day,
         status,
         dept_id: emp.dept_id,
@@ -486,75 +549,90 @@ const handleDailyReport = async (req, res) => {
         ward_id: emp.ward_id,
         area_id: emp.area_id,
         beat_id: emp.beat_id,
-        FirstInTime: FirstInTime || '--',
-        LastOutTime: LastOutTime || '--',
-        workingHours: workingHours || '--',
-        lastpunch: lastpunch || '--'
+        FirstInTime: FirstInTime || "--",
+        LastOutTime: LastOutTime || "--",
+        workingHours: workingHours || "--",
+        lastpunch: lastpunch || "--",
       });
     });
 
-    if (type === 'totalpunch') {
-      const totalPunch = employeeId == '-1'
-        ? attendanceData
-        : attendanceData.filter(record => record.UserID == employeeId);
+    if (type === "totalpunch") {
+      const totalPunch =
+        employeeId == "-1"
+          ? attendanceData
+          : attendanceData.filter((record) => record.UserID == employeeId);
 
       return res.status(200).json({
         isSuccess: true,
-        message: 'Total Punch',
-        data: totalPunch
+        message: "Total Punch",
+        data: totalPunch,
       });
     }
 
     // PDF Export
-    if (type === 'pdf') {
-      const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'portrait' });
+    if (type === "pdf") {
+      const doc = new PDFDocument({
+        margin: 30,
+        size: "A4",
+        layout: "portrait",
+      });
       const buffers = [];
 
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => {
         const pdfData = Buffer.concat(buffers);
-        const base64PDF = pdfData.toString('base64');
+        const base64PDF = pdfData.toString("base64");
 
         res.status(200).json({
           isSuccess: true,
-          message: 'Daily PDF report generated successfully',
-          base64: base64PDF
+          message: "Daily PDF report generated successfully",
+          base64: base64PDF,
         });
       });
 
-      doc.fillColor('#0A5275').fontSize(16).font('Helvetica-Bold').text('Daily Attendance Report', { align: 'center' });
+      doc
+        .fillColor("#0A5275")
+        .fontSize(16)
+        .font("Helvetica-Bold")
+        .text("Daily Attendance Report", { align: "center" });
       doc.moveDown(0.3);
-      doc.fillColor('black').fontSize(10).text(`Date: ${day}`, { align: 'center' });
+      doc
+        .fillColor("black")
+        .fontSize(10)
+        .text(`Date: ${day}`, { align: "center" });
       doc.moveDown(1);
 
       const columns = [
-        { label: 'UserID', width: 60 },
-        { label: 'Name', width: 120 },
-        { label: 'Status', width: 60 },
-        { label: 'In Time', width: 80 },
-        { label: 'Out Time', width: 80 },
-        { label: 'Working Hours', width: 100 }
+        { label: "UserID", width: 60 },
+        { label: "Name", width: 120 },
+        { label: "Status", width: 60 },
+        { label: "In Time", width: 80 },
+        { label: "Out Time", width: 80 },
+        { label: "Working Hours", width: 100 },
       ];
 
       const tableWidth = columns.reduce((acc, col) => acc + col.width, 0);
       let x = (595.28 - tableWidth) / 2;
       let y = doc.y;
 
-      doc.font('Helvetica-Bold').fontSize(9);
+      doc.font("Helvetica-Bold").fontSize(9);
       columns.forEach((col, i) => {
-        doc.rect(x, y, col.width, 25).fillAndStroke('#D6EAF8', '#000').fillColor('black');
-        const align = i === 0 ? 'right' : 'left';
+        doc
+          .rect(x, y, col.width, 25)
+          .fillAndStroke("#D6EAF8", "#000")
+          .fillColor("black");
+        const align = i === 0 ? "right" : "left";
         doc.text(col.label, x + 5, y + 7, { width: col.width - 10, align });
         x += col.width;
       });
 
       y += 25;
 
-      doc.font('Helvetica').fontSize(8);
-      result.forEach(row => {
+      doc.font("Helvetica").fontSize(8);
+      result.forEach((row) => {
         x = (595.28 - tableWidth) / 2;
         if (y > 770) {
-          doc.addPage({ layout: 'portrait' });
+          doc.addPage({ layout: "portrait" });
           y = 40;
         }
 
@@ -564,13 +642,13 @@ const handleDailyReport = async (req, res) => {
           row.status,
           row.FirstInTime,
           row.LastOutTime,
-          row.workingHours
+          row.workingHours,
         ];
 
         rowData.forEach((text, i) => {
           const col = columns[i];
           doc.rect(x, y, col.width, 20).stroke();
-          const align = i === 0 ? 'right' : 'left';
+          const align = i === 0 ? "right" : "left";
           doc.text(text, x + 5, y + 6, { width: col.width - 10, align });
           x += col.width;
         });
@@ -582,35 +660,44 @@ const handleDailyReport = async (req, res) => {
     }
 
     // Excel Export
-    else if (type === 'excel') {
+    else if (type === "excel") {
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Daily Attendance Report', {
-        pageSetup: { paperSize: 9, orientation: 'portrait' }
+      const worksheet = workbook.addWorksheet("Daily Attendance Report", {
+        pageSetup: { paperSize: 9, orientation: "portrait" },
       });
 
-      worksheet.mergeCells('A1:F1');
-      worksheet.getCell('A1').value = 'Daily Attendance Report';
-      worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getCell('A1').font = { bold: true, size: 14 };
+      worksheet.mergeCells("A1:F1");
+      worksheet.getCell("A1").value = "Daily Attendance Report";
+      worksheet.getCell("A1").alignment = {
+        vertical: "middle",
+        horizontal: "center",
+      };
+      worksheet.getCell("A1").font = { bold: true, size: 14 };
 
-      worksheet.mergeCells('A2:F2');
-      worksheet.getCell('A2').value = `Date: ${day}`;
-      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-      worksheet.getCell('A2').font = { size: 10 };
+      worksheet.mergeCells("A2:F2");
+      worksheet.getCell("A2").value = `Date: ${day}`;
+      worksheet.getCell("A2").alignment = {
+        vertical: "middle",
+        horizontal: "center",
+      };
+      worksheet.getCell("A2").font = { size: 10 };
 
       const columns = [
-        { header: 'UserID', width: 10, alignment: 'right' },
-        { header: 'Name', width: 20, alignment: 'left' },
-        { header: 'Status', width: 10, alignment: 'left' },
-        { header: 'In Time', width: 15, alignment: 'left' },
-        { header: 'Out Time', width: 15, alignment: 'left' },
-        { header: 'Working Hours', width: 20, alignment: 'left' }
+        { header: "UserID", width: 10, alignment: "right" },
+        { header: "Name", width: 20, alignment: "left" },
+        { header: "Status", width: 10, alignment: "left" },
+        { header: "In Time", width: 15, alignment: "left" },
+        { header: "Out Time", width: 15, alignment: "left" },
+        { header: "Working Hours", width: 20, alignment: "left" },
       ];
 
-      worksheet.addRow(columns.map(col => col.header));
+      worksheet.addRow(columns.map((col) => col.header));
       columns.forEach((col, idx) => {
         worksheet.getColumn(idx + 1).width = col.width;
-        worksheet.getCell(3, idx + 1).alignment = { vertical: 'middle', horizontal: 'center' };
+        worksheet.getCell(3, idx + 1).alignment = {
+          vertical: "middle",
+          horizontal: "center",
+        };
         worksheet.getCell(3, idx + 1).font = { bold: true };
       });
 
@@ -621,23 +708,23 @@ const handleDailyReport = async (req, res) => {
           row.status,
           row.FirstInTime,
           row.LastOutTime,
-          row.workingHours
+          row.workingHours,
         ]);
 
         const rowIndex = index + 4;
         worksheet.getRow(rowIndex).eachCell((cell, colNumber) => {
           const column = columns[colNumber - 1];
-          cell.alignment = { vertical: 'middle', horizontal: column.alignment };
+          cell.alignment = { vertical: "middle", horizontal: column.alignment };
         });
       });
 
       const buffer = await workbook.xlsx.writeBuffer();
-      const base64Excel = buffer.toString('base64');
+      const base64Excel = buffer.toString("base64");
 
       res.status(200).json({
         isSuccess: true,
-        message: 'Excel report generated successfully',
-        base64: base64Excel
+        message: "Excel report generated successfully",
+        base64: base64Excel,
       });
     }
 
@@ -645,309 +732,355 @@ const handleDailyReport = async (req, res) => {
     else {
       res.status(200).json({
         isSuccess: true,
-        message: 'Daily report get successfully',
-        data: result
+        message: "Daily report get successfully",
+        data: result,
       });
     }
   } catch (error) {
-    console.error('Daily Report Error:', error.message);
+    console.error("Daily Report Error:", error.message);
     res.status(500).json({
       isSuccess: false,
       message: `Error in fetching daily report: ${error.message}`,
-      data: []
+      data: [],
     });
   }
 };
 
-
 const handlePunchReport = async (req, res) => {
-  try {
-    const pool = await getConnection();
-    const { fromDate, toDate, employeeId, type, zone_id, ward_id, area_id, beat_id, dept_id } = req.body;
+//   try {
+//     const pool = await getConnection();
+//     const {
+//       fromDate,
+//       toDate,
+//       employeeId,
+//       type,
+//       zone_id,
+//       ward_id,
+//       area_id,
+//       beat_id,
+//       dept_id,
+//     } = req.body;
 
-    const start = moment(fromDate || new Date()).startOf('day');
-    const end = moment(toDate || new Date()).endOf('day');
+//     const start = moment(fromDate || new Date()).startOf("day");
+//     const end = moment(toDate || new Date()).endOf("day");
 
-    const days = [];
-    for (let m = moment(start); m.isSameOrBefore(end); m.add(1, 'days')) {
-      days.push(m.format('YYYY-MM-DD'));
-    }
+//     const days = [];
+//     for (let m = moment(start); m.isSameOrBefore(end); m.add(1, "days")) {
+//       days.push(m.format("YYYY-MM-DD"));
+//     }
 
-    // 👇 Build WHERE clause with multiple optional filters
-    const filters = [];
-    if (employeeId && employeeId !== -1) filters.push(`userid = '${employeeId}'`);
-    if (dept_id) filters.push(`dept_id = '${dept_id}'`);
-    if (zone_id) filters.push(`zone_id = '${zone_id}'`);
-    if (ward_id) filters.push(`ward_id = '${ward_id}'`);
-    if (area_id) filters.push(`area_id = '${area_id}'`);
-    if (beat_id) filters.push(`beat_id = '${beat_id}'`);
-    const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+//     // 👇 Build WHERE clause with multiple optional filters
+//     const filters = [];
+//     if (employeeId && employeeId !== -1)
+//       filters.push(`userid = '${employeeId}'`);
+//     if (dept_id) filters.push(`dept_id = '${dept_id}'`);
+//     if (zone_id) filters.push(`zone_id = '${zone_id}'`);
+//     if (ward_id) filters.push(`ward_id = '${ward_id}'`);
+//     if (area_id) filters.push(`area_id = '${area_id}'`);
+//     if (beat_id) filters.push(`beat_id = '${beat_id}'`);
+//     const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
 
-    const employeesQuery = `
-  SELECT userid, 
-         CONCAT(first_name, ' ', ISNULL(middle_name, ''), ' ', last_name) AS empname,
-         dept_id,
-         zone_id,
-         ward_id,
-         area_id,
-         beat_id
-  FROM d00_emptable
-  WHERE (${employeeId} = -1 OR userid = ${employeeId})
-    AND (${zone_id} = -1 OR zone_id = ${zone_id})
-    AND (${ward_id} = -1 OR ward_id = ${ward_id})
-    AND (${area_id} = -1 OR area_id = ${area_id})
-    AND (${beat_id} = -1 OR beat_id = ${beat_id})
-    AND (${dept_id} = -1 OR dept_id = ${dept_id})
-`;
-    const employees = (await pool.request().query(employeesQuery)).recordset;
+//     const employeesQuery = `
+//          SELECT userid, 
+//          CONCAT(first_name, ' ', ISNULL(middle_name, ''), ' ', last_name) AS empname,
+//          dept_id,
+//          zone_id,
+//          ward_id,
+//          area_id,
+//          beat_id
+//   FROM d00_emptable
+//   WHERE (${employeeId} = -1 OR userid = ${employeeId})
+//     AND (${zone_id} = -1 OR zone_id = ${zone_id})
+//     AND (${ward_id} = -1 OR ward_id = ${ward_id})
+//     AND (${area_id} = -1 OR area_id = ${area_id})
+//     AND (${beat_id} = -1 OR beat_id = ${beat_id})
+//     AND (${dept_id} = -1 OR dept_id = ${dept_id})
+// `;
+//     const employees = (await pool.request().query(employeesQuery)).recordset;
 
-    const attendanceQuery = `
-      SELECT 
-        ua.UserID, 
-        CAST(ua.AttDateTime AS DATE) AS AttDate,
-        MIN(CASE WHEN ua.io_mode = 0 THEN CONVERT(VARCHAR, ua.AttDateTime, 108) END) AS FirstInTime,
-        MAX(CASE WHEN ua.io_mode = 1 THEN CONVERT(VARCHAR, ua.AttDateTime, 108) END) AS LastOutTime
-      FROM UserAttendance ua
-      WHERE ua.AttDateTime BETWEEN '${start.format('YYYY-MM-DD')}' AND '${end.format('YYYY-MM-DD')} 23:59:59'
-      GROUP BY ua.UserID, CAST(ua.AttDateTime AS DATE)
-    `;
-    const attendanceData = (await pool.request().query(attendanceQuery)).recordset;
+//     const attendanceQuery = `
+//       SELECT 
+//         ua.UserID, 
+//         CAST(ua.AttDateTime AS DATE) AS AttDate,
+//         MIN(CASE WHEN ua.io_mode = 0 THEN CONVERT(VARCHAR, ua.AttDateTime, 108) END) AS FirstInTime,
+//         MAX(CASE WHEN ua.io_mode = 1 THEN CONVERT(VARCHAR, ua.AttDateTime, 108) END) AS LastOutTime
+//       FROM UserAttendance ua
+//       WHERE ua.AttDateTime BETWEEN '${start.format(
+//         "YYYY-MM-DD"
+//       )}' AND '${end.format("YYYY-MM-DD")} 23:59:59'
+//       GROUP BY ua.UserID, CAST(ua.AttDateTime AS DATE)
+//     `;
+//     const attendanceData = (await pool.request().query(attendanceQuery))
+//       .recordset;
 
-    const attendanceMap = {};
-    attendanceData.forEach(row => {
-      const key = `${row.UserID}_${moment(row.AttDate).format('YYYY-MM-DD')}`;
-      attendanceMap[key] = {
-        inTime: row.FirstInTime,
-        outTime: row.LastOutTime
-      };
-    });
+//     const attendanceMap = {};
+//     attendanceData.forEach((row) => {
+//       const key = `${row.UserID}_${moment(row.AttDate).format("YYYY-MM-DD")}`;
+//       attendanceMap[key] = {
+//         inTime: row.FirstInTime,
+//         outTime: row.LastOutTime,
+//       };
+//     });
 
-    const holidayQuery = `
-      SELECT Date 
-      FROM holiDaySchedule 
-      WHERE Date BETWEEN '${start.format('YYYY-MM-DD')}' AND '${end.format('YYYY-MM-DD')}'
-        AND IsActive = 1
-    `;
-    const holidayDates = new Set(
-      (await pool.request().query(holidayQuery)).recordset.map(h => moment(h.Date).format('YYYY-MM-DD'))
-    );
+//     const holidayQuery = `
+//       SELECT Date 
+//       FROM holiDaySchedule 
+//       WHERE Date BETWEEN '${start.format("YYYY-MM-DD")}' AND '${end.format(
+//       "YYYY-MM-DD"
+//     )}'
+//         AND IsActive = 1
+//     `;
+//     const holidayDates = new Set(
+//       (await pool.request().query(holidayQuery)).recordset.map((h) =>
+//         moment(h.Date).format("YYYY-MM-DD")
+//       )
+//     );
 
-    const result = [];
+//     const result = [];
 
-    employees.forEach(emp => {
-      days.forEach(day => {
-        const key = `${emp.userid}_${day}`;
-        const att = attendanceMap[key];
-        const dayOfWeek = moment(day).day();
+//     employees.forEach((emp) => {
+//       days.forEach((day) => {
+//         const key = `${emp.userid}_${day}`;
+//         const att = attendanceMap[key];
+//         const dayOfWeek = moment(day).day();
 
-        let status = 'A';
-        let workingHours = null;
+//         let status = "A";
+//         let workingHours = null;
 
-        if (dayOfWeek === 0) {
-          status = 'S';
-        } else if (holidayDates.has(day)) {
-          status = 'H';
-        } else if (att) {
-          status = 'P';
+//         if (dayOfWeek === 0) {
+//           status = "S";
+//         } else if (holidayDates.has(day)) {
+//           status = "H";
+//         } else if (att) {
+//           status = "P";
 
-          if (att.inTime && att.outTime) {
-            const inTime = moment(att.inTime, 'HH:mm:ss');
-            const outTime = moment(att.outTime, 'HH:mm:ss');
-            const duration = moment.duration(outTime.diff(inTime));
-            workingHours = `${duration.hours()}h ${duration.minutes()}m`;
-          }
-        }
+//           if (att.inTime && att.outTime) {
+//             const inTime = moment(att.inTime, "HH:mm:ss");
+//             const outTime = moment(att.outTime, "HH:mm:ss");
+//             const duration = moment.duration(outTime.diff(inTime));
+//             workingHours = `${duration.hours()}h ${duration.minutes()}m`;
+//           }
+//         }
 
-        result.push({
-          userid: emp.userid,
-          empname: emp.empname.trim().replace(/\s+/g, ' '),
-          date: day,
-          status,
-          dept_id: emp.dept_id,
-          zone_id: emp.zone_id,
-          ward_id: emp.ward_id,
-          area_id: emp.area_id,
-          beat_id: emp.beat_id,
-          FirstInTime: att?.inTime || '--',
-          LastOutTime: att?.outTime || '--',
-          workingHours: workingHours || '--',
-          lastpunch: att?.outTime || '--' 
-        });
-      });
-    });
+//         result.push({
+//           userid: emp.userid,
+//           empname: emp.empname.trim().replace(/\s+/g, " "),
+//           date: day,
+//           status,
+//           dept_id: emp.dept_id,
+//           zone_id: emp.zone_id,
+//           ward_id: emp.ward_id,
+//           area_id: emp.area_id,
+//           beat_id: emp.beat_id,
+//           FirstInTime: att?.inTime || "--",
+//           LastOutTime: att?.outTime || "--",
+//           workingHours: workingHours || "--",
+//           lastpunch: att?.outTime || "--",
+//         });
+//       });
+//     });
 
-    // Export as PDF
-    if (type === 'pdf') {
-      const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'portrait' });
-      const buffers = [];
+//     // Export as PDF
+//     if (type === "pdf") {
+//       const doc = new PDFDocument({
+//         margin: 30,
+//         size: "A4",
+//         layout: "portrait",
+//       });
+//       const buffers = [];
 
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
-        const pdfData = Buffer.concat(buffers);
-        const base64PDF = pdfData.toString('base64');
+//       doc.on("data", buffers.push.bind(buffers));
+//       doc.on("end", () => {
+//         const pdfData = Buffer.concat(buffers);
+//         const base64PDF = pdfData.toString("base64");
 
-        return res.status(200).json({
-          isSuccess: true,
-          message: 'Punching Report PDF generated successfully',
-          base64: base64PDF
-        });
-      });
+//         return res.status(200).json({
+//           isSuccess: true,
+//           message: "Punching Report PDF generated successfully",
+//           base64: base64PDF,
+//         });
+//       });
 
-      doc.fillColor('#0A5275').fontSize(16).font('Helvetica-Bold').text('Punching Attendance Report', { align: 'center' });
-      doc.moveDown(0.3);
-      doc.fillColor('black').fontSize(10).text(`From: ${fromDate} To: ${toDate}`, { align: 'center' });
-      doc.moveDown(1);
+//       doc
+//         .fillColor("#0A5275")
+//         .fontSize(16)
+//         .font("Helvetica-Bold")
+//         .text("Punching Attendance Report", { align: "center" });
+//       doc.moveDown(0.3);
+//       doc
+//         .fillColor("black")
+//         .fontSize(10)
+//         .text(`From: ${fromDate} To: ${toDate}`, { align: "center" });
+//       doc.moveDown(1);
 
-      const columns = [
-        { label: 'UserID', width: 50 },
-        { label: 'Name', width: 120 },
-        { label: 'Date', width: 70 },
-        { label: 'Status', width: 50 },
-        { label: 'In Time', width: 80 },
-        { label: 'Out Time', width: 80 },
-        { label: 'Working Hours', width: 100 }
-      ];
+//       const columns = [
+//         { label: "UserID", width: 50 },
+//         { label: "Name", width: 120 },
+//         { label: "Date", width: 70 },
+//         { label: "Status", width: 50 },
+//         { label: "In Time", width: 80 },
+//         { label: "Out Time", width: 80 },
+//         { label: "Working Hours", width: 100 },
+//       ];
 
-      let tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
-      let x = (595.28 - tableWidth) / 2;
-      let y = doc.y;
+//       let tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
+//       let x = (595.28 - tableWidth) / 2;
+//       let y = doc.y;
 
-      doc.font('Helvetica-Bold').fontSize(9);
-      columns.forEach((col, i) => {
-        doc.rect(x, y, col.width, 25).fillAndStroke('#D6EAF8', '#000').fillColor('black');
-        const align = typeof result[0][col.label.toLowerCase()] === 'number' ? 'right' : 'left';
-        doc.text(col.label, x + 5, y + 7, { width: col.width - 10, align });
-        x += col.width;
-      });
+//       doc.font("Helvetica-Bold").fontSize(9);
+//       columns.forEach((col, i) => {
+//         doc
+//           .rect(x, y, col.width, 25)
+//           .fillAndStroke("#D6EAF8", "#000")
+//           .fillColor("black");
+//         const align =
+//           typeof result[0][col.label.toLowerCase()] === "number"
+//             ? "right"
+//             : "left";
+//         doc.text(col.label, x + 5, y + 7, { width: col.width - 10, align });
+//         x += col.width;
+//       });
 
-      y += 25;
-      doc.font('Helvetica').fontSize(8);
+//       y += 25;
+//       doc.font("Helvetica").fontSize(8);
 
-      result.forEach(row => {
-        x = (595.28 - tableWidth) / 2;
-        if (y > 770) {
-          doc.addPage();
-          y = 40;
-        }
+//       result.forEach((row) => {
+//         x = (595.28 - tableWidth) / 2;
+//         if (y > 770) {
+//           doc.addPage();
+//           y = 40;
+//         }
 
-        const rowData = [
-          row.userid,
-          row.empname,
-          row.date,
-          row.status,
-          row.FirstInTime,
-          row.LastOutTime,
-          row.workingHours
-        ];
+//         const rowData = [
+//           row.userid,
+//           row.empname,
+//           row.date,
+//           row.status,
+//           row.FirstInTime,
+//           row.LastOutTime,
+//           row.workingHours,
+//         ];
 
-        rowData.forEach((text, i) => {
-          const col = columns[i];
-          doc.rect(x, y, col.width, 20).stroke();
-          const align = typeof text === 'number' ? 'right' : 'left';
-          doc.text(text.toString(), x + 5, y + 6, { width: col.width - 10, align });
-          x += col.width;
-        });
+//         rowData.forEach((text, i) => {
+//           const col = columns[i];
+//           doc.rect(x, y, col.width, 20).stroke();
+//           const align = typeof text === "number" ? "right" : "left";
+//           doc.text(text.toString(), x + 5, y + 6, {
+//             width: col.width - 10,
+//             align,
+//           });
+//           x += col.width;
+//         });
 
-        y += 20;
-      });
+//         y += 20;
+//       });
 
-      doc.end();
-    }
+//       doc.end();
+//     }
 
-    // Export as Excel
-    else if (type === 'excel') {
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet('Punching Report');
+//     // Export as Excel
+//     else if (type === "excel") {
+//       const workbook = new ExcelJS.Workbook();
+//       const sheet = workbook.addWorksheet("Punching Report");
 
-      const headers = ['UserID', 'Name', 'Date', 'Status', 'In Time', 'Out Time', 'Working Hours'];
-      sheet.addRow(headers);
+//       const headers = [
+//         "UserID",
+//         "Name",
+//         "Date",
+//         "Status",
+//         "In Time",
+//         "Out Time",
+//         "Working Hours",
+//       ];
+//       sheet.addRow(headers);
 
-      // Styles
-      sheet.columns = [
-        { width: 10 }, // UserID
-        { width: 25 }, // Name
-        { width: 15 }, // Date
-        { width: 10 }, // Status
-        { width: 15 }, // In Time
-        { width: 15 }, // Out Time
-        { width: 20 }  // Working Hours
-      ];
+//       // Styles
+//       sheet.columns = [
+//         { width: 10 }, // UserID
+//         { width: 25 }, // Name
+//         { width: 15 }, // Date
+//         { width: 10 }, // Status
+//         { width: 15 }, // In Time
+//         { width: 15 }, // Out Time
+//         { width: 20 }, // Working Hours
+//       ];
 
-      sheet.getRow(1).eachCell(cell => {
-        cell.font = { bold: true };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'D6EAF8' }
-        };
-        cell.alignment = { horizontal: 'center' };
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        };
-      });
+//       sheet.getRow(1).eachCell((cell) => {
+//         cell.font = { bold: true };
+//         cell.fill = {
+//           type: "pattern",
+//           pattern: "solid",
+//           fgColor: { argb: "D6EAF8" },
+//         };
+//         cell.alignment = { horizontal: "center" };
+//         cell.border = {
+//           top: { style: "thin" },
+//           left: { style: "thin" },
+//           bottom: { style: "thin" },
+//           right: { style: "thin" },
+//         };
+//       });
 
-      result.forEach(row => {
-        const rowData = [
-          row.userid,
-          row.empname,
-          row.date,
-          row.status,
-          row.FirstInTime,
-          row.LastOutTime,
-          row.workingHours
-        ];
-        const inserted = sheet.addRow(rowData);
-        inserted.eachCell((cell, colNumber) => {
-          cell.alignment = {
-            horizontal: typeof rowData[colNumber - 1] === 'number' ? 'right' : 'left'
-          };
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-          };
-        });
-      });
+//       result.forEach((row) => {
+//         const rowData = [
+//           row.userid,
+//           row.empname,
+//           row.date,
+//           row.status,
+//           row.FirstInTime,
+//           row.LastOutTime,
+//           row.workingHours,
+//         ];
+//         const inserted = sheet.addRow(rowData);
+//         inserted.eachCell((cell, colNumber) => {
+//           cell.alignment = {
+//             horizontal:
+//               typeof rowData[colNumber - 1] === "number" ? "right" : "left",
+//           };
+//           cell.border = {
+//             top: { style: "thin" },
+//             left: { style: "thin" },
+//             bottom: { style: "thin" },
+//             right: { style: "thin" },
+//           };
+//         });
+//       });
 
-      const buffer = await workbook.xlsx.writeBuffer();
-      const base64Excel = buffer.toString('base64');
+//       const buffer = await workbook.xlsx.writeBuffer();
+//       const base64Excel = buffer.toString("base64");
 
-      res.status(200).json({
-        isSuccess: true,
-        message: 'Punching Report Excel generated successfully',
-        base64: base64Excel
-      });
-    } else {
-      // Normal JSON response if no type is provided
-      res.status(200).json({
-        isSuccess: true,
-        message: 'Punching Report data retrieved',
-        data: result
-      });
-    }
-  } catch (error) {
-    console.error('Punch Report Error:', error.message);
-    res.status(500).json({
-      isSuccess: false,
-      message: `Error generating report: ${error.message}`,
-      data: []
-    });
-  }
+//       res.status(200).json({
+//         isSuccess: true,
+//         message: "Punching Report Excel generated successfully",
+//         base64: base64Excel,
+//       });
+//     } else {
+//       // Normal JSON response if no type is provided
+//       res.status(200).json({
+//         isSuccess: true,
+//         message: "Punching Report data retrieved",
+//         data: result,
+//       });
+//     }
+//   } catch (error) {
+//     console.error("Punch Report Error:", error.message);
+//     res.status(500).json({
+//       isSuccess: false,
+//       message: `Error generating report: ${error.message}`,
+//       data: [],
+//     });
+//   }
 };
 
 function formatDurationToHHMMSS(duration, showNegativeAsZero = true) {
-  if (!duration || typeof duration.asMilliseconds !== 'function') {
-    return '--';
+  if (!duration || typeof duration.asMilliseconds !== "function") {
+    return "--";
   }
   let ms = duration.asMilliseconds();
 
   if (ms < 0) {
     if (showNegativeAsZero) {
-      return '00:00:00';
+      return "00:00:00";
     }
   }
 
@@ -958,26 +1091,42 @@ function formatDurationToHHMMSS(duration, showNegativeAsZero = true) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+    2,
+    "0"
+  )}:${String(seconds).padStart(2, "0")}`;
 }
 
-
-function formatSignedDurationForColumnE(duration, allottedDuration, actualBreakDuration) {
-  if (!duration || typeof duration.asMilliseconds !== 'function' ||
-    !allottedDuration || typeof allottedDuration.asMilliseconds !== 'function' ||
-    !actualBreakDuration || typeof actualBreakDuration.asMilliseconds !== 'function') {
-    return '--';
+function formatSignedDurationForColumnE(
+  duration,
+  allottedDuration,
+  actualBreakDuration
+) {
+  if (
+    !duration ||
+    typeof duration.asMilliseconds !== "function" ||
+    !allottedDuration ||
+    typeof allottedDuration.asMilliseconds !== "function" ||
+    !actualBreakDuration ||
+    typeof actualBreakDuration.asMilliseconds !== "function"
+  ) {
+    return "--";
   }
 
-  if (actualBreakDuration.asMilliseconds() <= allottedDuration.asMilliseconds()) {
-    return '00:00:00';
+  if (
+    actualBreakDuration.asMilliseconds() <= allottedDuration.asMilliseconds()
+  ) {
+    return "00:00:00";
   } else {
     const ms = duration.asMilliseconds(); // Will be negative here, as duration = allotted - actual
     const absTotalSeconds = Math.round(Math.abs(ms) / 1000);
     const hours = Math.floor(absTotalSeconds / 3600);
     const minutes = Math.floor((absTotalSeconds % 3600) / 60);
     const seconds = absTotalSeconds % 60;
-    return `-${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    return `-${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+      2,
+      "0"
+    )}:${String(seconds).padStart(2, "0")}`;
   }
 }
 
@@ -986,12 +1135,12 @@ const OutReports = async (req, res) => {
     const pool = await getConnection();
     const { fromDate, toDate, employeeId, type } = req.body;
 
-    const start = moment(fromDate || new Date()).startOf('day');
-    const end = moment(toDate || new Date()).endOf('day');
+    const start = moment(fromDate || new Date()).startOf("day");
+    const end = moment(toDate || new Date()).endOf("day");
 
     const days = [];
-    for (let m = moment(start); m.isSameOrBefore(end); m.add(1, 'days')) {
-      days.push(m.format('YYYY-MM-DD'));
+    for (let m = moment(start); m.isSameOrBefore(end); m.add(1, "days")) {
+      days.push(m.format("YYYY-MM-DD"));
     }
 
     // Corrected alias to lunch_duration_minutes
@@ -1001,7 +1150,11 @@ const OutReports = async (req, res) => {
                  CONCAT(first_name, ' ', ISNULL(middle_name, ''), ' ', last_name) AS empname,
                  45 AS lunch_duration_minutes 
           FROM d00_emptable
-          ${employeeId && employeeId.toString() !== '-1' ? `WHERE userid = '${employeeId}'` : ''}
+          ${
+            employeeId && employeeId.toString() !== "-1"
+              ? `WHERE userid = '${employeeId}'`
+              : ""
+          }
         `;
     const employees = (await pool.request().query(employeesQuery)).recordset;
 
@@ -1011,15 +1164,22 @@ const OutReports = async (req, res) => {
             ua.AttDateTime,
             ua.io_mode
           FROM UserAttendance ua
-          WHERE ua.AttDateTime BETWEEN '${start.format('YYYY-MM-DD HH:mm:ss')}' AND '${end.format('YYYY-MM-DD HH:mm:ss')}'
-          ${employeeId && employeeId.toString() !== '-1' ? `AND ua.UserID = '${employeeId}'` : ''}
+          WHERE ua.AttDateTime BETWEEN '${start.format(
+            "YYYY-MM-DD HH:mm:ss"
+          )}' AND '${end.format("YYYY-MM-DD HH:mm:ss")}'
+          ${
+            employeeId && employeeId.toString() !== "-1"
+              ? `AND ua.UserID = '${employeeId}'`
+              : ""
+          }
           ORDER BY ua.UserID, ua.AttDateTime
         `;
-    const attendanceData = (await pool.request().query(attendanceQuery)).recordset;
+    const attendanceData = (await pool.request().query(attendanceQuery))
+      .recordset;
 
     const attendanceMap = {};
-    attendanceData.forEach(row => {
-      const dateStr = moment(row.AttDateTime).format('YYYY-MM-DD');
+    attendanceData.forEach((row) => {
+      const dateStr = moment(row.AttDateTime).format("YYYY-MM-DD");
       // Ensure UserID is string and trimmed for key consistency
       const userIdStr = String(row.UserID).trim();
       const key = `${userIdStr}_${dateStr}`;
@@ -1028,48 +1188,60 @@ const OutReports = async (req, res) => {
       }
       attendanceMap[key].punches.push({
         dateTime: moment(row.AttDateTime),
-        io_mode: parseInt(row.io_mode, 10) // Parse io_mode to integer
+        io_mode: parseInt(row.io_mode, 10), // Parse io_mode to integer
       });
     });
 
     const holidayQuery = `
           SELECT Date 
           FROM holiDaySchedule 
-          WHERE Date BETWEEN '${start.format('YYYY-MM-DD')}' AND '${end.format('YYYY-MM-DD')}'
+          WHERE Date BETWEEN '${start.format("YYYY-MM-DD")}' AND '${end.format(
+      "YYYY-MM-DD"
+    )}'
             AND IsActive = 1
         `;
     const holidayDates = new Set(
-      (await pool.request().query(holidayQuery)).recordset.map(h => moment(h.Date).format('YYYY-MM-DD'))
+      (await pool.request().query(holidayQuery)).recordset.map((h) =>
+        moment(h.Date).format("YYYY-MM-DD")
+      )
     );
 
     const result = [];
 
-    employees.forEach(emp => {
+    employees.forEach((emp) => {
       // Ensure emp.userid is string and trimmed for key consistency
       const empIdStr = String(emp.userid).trim();
 
-      days.forEach(day => {
+      days.forEach((day) => {
         const key = `${empIdStr}_${day}`;
         const dailyAttendance = attendanceMap[key];
         const dayOfWeek = moment(day).day(); // 0 for Sunday, 6 for Saturday
 
-        let status = 'A';
-        let firstInTimeStr = '--';
-        let lastOutTimeStr = '--';
-        let hoursCStr = '--';
-        let outHoursDStr = '--';
-        let hourEStr = '--';
-        let balanceHoursFStr = '--';
+        let status = "A";
+        let firstInTimeStr = "--";
+        let lastOutTimeStr = "--";
+        let hoursCStr = "--";
+        let outHoursDStr = "--";
+        let hourEStr = "--";
+        let balanceHoursFStr = "--";
 
         // emp.lunch_duration_minutes is now correctly sourced from employeesQuery
-        const allottedLunchMinutes = parseInt(emp.lunch_duration_minutes, 10) || 45;
-        const allottedLunchDuration = moment.duration(allottedLunchMinutes, 'minutes');
+        const allottedLunchMinutes =
+          parseInt(emp.lunch_duration_minutes, 10) || 45;
+        const allottedLunchDuration = moment.duration(
+          allottedLunchMinutes,
+          "minutes"
+        );
 
         if (dayOfWeek === 0) {
-          status = 'S';
+          status = "S";
         } else if (holidayDates.has(day)) {
-          status = 'H';
-        } else if (dailyAttendance && dailyAttendance.punches && dailyAttendance.punches.length > 0) {
+          status = "H";
+        } else if (
+          dailyAttendance &&
+          dailyAttendance.punches &&
+          dailyAttendance.punches.length > 0
+        ) {
           const punches = dailyAttendance.punches;
           // Punches are already sorted by SQL query (ORDER BY ua.AttDateTime)
 
@@ -1077,54 +1249,75 @@ const OutReports = async (req, res) => {
           const lastPunch = punches[punches.length - 1];
 
           // io_mode is now an integer due to parseInt()
-          if (punches.length >= 2 && firstPunch.io_mode === 0 && lastPunch.io_mode === 1) {
-            status = 'P';
+          if (
+            punches.length >= 2 &&
+            firstPunch.io_mode === 0 &&
+            lastPunch.io_mode === 1
+          ) {
+            status = "P";
             const firstInTime = firstPunch.dateTime;
             const lastOutTime = lastPunch.dateTime;
 
-            firstInTimeStr = firstInTime.format('HH:mm:ss');
-            lastOutTimeStr = lastOutTime.format('HH:mm:ss');
+            firstInTimeStr = firstInTime.format("HH:mm:ss");
+            lastOutTimeStr = lastOutTime.format("HH:mm:ss");
 
-            const hoursCDuration = moment.duration(lastOutTime.diff(firstInTime));
+            const hoursCDuration = moment.duration(
+              lastOutTime.diff(firstInTime)
+            );
             hoursCStr = formatDurationToHHMMSS(hoursCDuration);
 
             let actualBreakDuration = moment.duration(0);
             for (let i = 0; i < punches.length - 1; i++) {
-              if (punches[i].io_mode === 1 && punches[i + 1].io_mode === 0) { // OUT punch followed by IN punch
+              if (punches[i].io_mode === 1 && punches[i + 1].io_mode === 0) {
+                // OUT punch followed by IN punch
                 const breakStart = punches[i].dateTime;
                 const breakEnd = punches[i + 1].dateTime;
                 if (breakEnd.isAfter(breakStart)) {
-                  actualBreakDuration.add(moment.duration(breakEnd.diff(breakStart)));
+                  actualBreakDuration.add(
+                    moment.duration(breakEnd.diff(breakStart))
+                  );
                 }
               }
             }
             outHoursDStr = formatDurationToHHMMSS(actualBreakDuration);
 
-            const differenceDurationE = allottedLunchDuration.clone().subtract(actualBreakDuration);
-            hourEStr = formatSignedDurationForColumnE(differenceDurationE, allottedLunchDuration, actualBreakDuration);
+            const differenceDurationE = allottedLunchDuration
+              .clone()
+              .subtract(actualBreakDuration);
+            hourEStr = formatSignedDurationForColumnE(
+              differenceDurationE,
+              allottedLunchDuration,
+              actualBreakDuration
+            );
 
             let balanceHoursFDuration;
-            if (actualBreakDuration.asMilliseconds() <= allottedLunchDuration.asMilliseconds()) {
+            if (
+              actualBreakDuration.asMilliseconds() <=
+              allottedLunchDuration.asMilliseconds()
+            ) {
               balanceHoursFDuration = hoursCDuration.clone();
             } else {
-              const excessBreakDuration = actualBreakDuration.clone().subtract(allottedLunchDuration);
-              balanceHoursFDuration = hoursCDuration.clone().subtract(excessBreakDuration);
+              const excessBreakDuration = actualBreakDuration
+                .clone()
+                .subtract(allottedLunchDuration);
+              balanceHoursFDuration = hoursCDuration
+                .clone()
+                .subtract(excessBreakDuration);
             }
             if (balanceHoursFDuration.asMilliseconds() < 0) {
               balanceHoursFDuration = moment.duration(0);
             }
             balanceHoursFStr = formatDurationToHHMMSS(balanceHoursFDuration);
-
           } else {
-            status = 'M'; // Missed punch or invalid sequence
+            status = "M"; // Missed punch or invalid sequence
           }
         }
         // If not S, H, P, or M, status remains 'A' (e.g., no punches for the day)
 
         result.push({
           userid: emp.userid, // Original userid for the report
-          empname: emp.empname.trim().replace(/\s+/g, ' '),
-          date: moment(day).format('DD-MMM-YYYY'),
+          empname: emp.empname.trim().replace(/\s+/g, " "),
+          date: moment(day).format("DD-MMM-YYYY"),
           status,
           FirstInTime: firstInTimeStr,
           LastOutTime: lastOutTimeStr,
@@ -1132,151 +1325,611 @@ const OutReports = async (req, res) => {
           OutHours_D: outHoursDStr,
           Hour_E: hourEStr,
           BalanceHours_F: balanceHoursFStr,
-          attendanceFrom: 'BioMetric'
+          attendanceFrom: "BioMetric",
         });
       });
     });
 
     // PDF and Excel export logic (remains the same)
-    if (type === 'pdf') {
-      const doc = new PDFDocument({ margin: 30, size: 'A4', layout: 'landscape' });
+    if (type === "pdf") {
+      const doc = new PDFDocument({
+        margin: 30,
+        size: "A4",
+        layout: "landscape",
+      });
       const buffers = [];
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => {
         const pdfData = Buffer.concat(buffers);
-        const base64PDF = pdfData.toString('base64');
+        const base64PDF = pdfData.toString("base64");
         return res.status(200).json({
           isSuccess: true,
-          message: 'Punching Report PDF generated successfully',
-          base64: base64PDF
+          message: "Punching Report PDF generated successfully",
+          base64: base64PDF,
         });
       });
 
-      doc.fillColor('#0A5275').fontSize(16).font('Helvetica-Bold').text('Daily Performance Report', { align: 'center' });
+      doc
+        .fillColor("#0A5275")
+        .fontSize(16)
+        .font("Helvetica-Bold")
+        .text("Daily Performance Report", { align: "center" });
       doc.moveDown(0.3);
-      doc.fillColor('black').fontSize(10).text(`From: ${moment(start).format('DD-MMM-YYYY')} To: ${moment(end).format('DD-MMM-YYYY')}`, { align: 'center' });
+      doc
+        .fillColor("black")
+        .fontSize(10)
+        .text(
+          `From: ${moment(start).format("DD-MMM-YYYY")} To: ${moment(
+            end
+          ).format("DD-MMM-YYYY")}`,
+          { align: "center" }
+        );
       doc.moveDown(1);
 
       const pdfColumns = [
-        { label: 'S.No.', key: 'sno', width: 30, align: 'center' },
-        { label: 'Employee', key: 'empname', width: 120, align: 'left' },
-        { label: 'Date', key: 'date', width: 70, align: 'center' },
-        { label: 'In Time (A)', key: 'FirstInTime', width: 60, align: 'center' },
-        { label: 'Out Time (B)', key: 'LastOutTime', width: 60, align: 'center' },
-        { label: 'Hours (C)', key: 'Hours_C', width: 60, align: 'center' },
-        { label: 'Out Hours (D)', key: 'OutHours_D', width: 65, align: 'center' },
-        { label: 'Hour(+/-) E', key: 'Hour_E', width: 65, align: 'center' },
-        { label: 'Balance Hours F', key: 'BalanceHours_F', width: 70, align: 'center' },
-        { label: 'Attendance From', key: 'attendanceFrom', width: 80, align: 'left' }
+        { label: "S.No.", key: "sno", width: 30, align: "center" },
+        { label: "Employee", key: "empname", width: 120, align: "left" },
+        { label: "Date", key: "date", width: 70, align: "center" },
+        {
+          label: "In Time (A)",
+          key: "FirstInTime",
+          width: 60,
+          align: "center",
+        },
+        {
+          label: "Out Time (B)",
+          key: "LastOutTime",
+          width: 60,
+          align: "center",
+        },
+        { label: "Hours (C)", key: "Hours_C", width: 60, align: "center" },
+        {
+          label: "Out Hours (D)",
+          key: "OutHours_D",
+          width: 65,
+          align: "center",
+        },
+        { label: "Hour(+/-) E", key: "Hour_E", width: 65, align: "center" },
+        {
+          label: "Balance Hours F",
+          key: "BalanceHours_F",
+          width: 70,
+          align: "center",
+        },
+        {
+          label: "Attendance From",
+          key: "attendanceFrom",
+          width: 80,
+          align: "left",
+        },
       ];
       const pageMargin = 30;
-      const availableWidth = 841.89 - (2 * pageMargin);
+      const availableWidth = 841.89 - 2 * pageMargin;
       let tableWidth = pdfColumns.reduce((sum, col) => sum + col.width, 0);
       let x = (availableWidth - tableWidth) / 2 + pageMargin;
       if (x < pageMargin) x = pageMargin;
       let y = doc.y;
 
-      doc.font('Helvetica-Bold').fontSize(8);
-      pdfColumns.forEach(col => {
-        doc.rect(x, y, col.width, 20).fillAndStroke('#D6EAF8', '#000').fillColor('black');
-        doc.text(col.label, x + 3, y + 6, { width: col.width - 6, align: col.align || 'left' });
+      doc.font("Helvetica-Bold").fontSize(8);
+      pdfColumns.forEach((col) => {
+        doc
+          .rect(x, y, col.width, 20)
+          .fillAndStroke("#D6EAF8", "#000")
+          .fillColor("black");
+        doc.text(col.label, x + 3, y + 6, {
+          width: col.width - 6,
+          align: col.align || "left",
+        });
         x += col.width;
       });
       y += 20;
 
-      doc.font('Helvetica').fontSize(7);
+      doc.font("Helvetica").fontSize(7);
       result.forEach((row, index) => {
         x = (availableWidth - tableWidth) / 2 + pageMargin;
         if (x < pageMargin) x = pageMargin;
         if (y > 550) {
-          doc.addPage({ margin: 30, size: 'A4', layout: 'landscape' });
+          doc.addPage({ margin: 30, size: "A4", layout: "landscape" });
           y = pageMargin;
           let headerX = (availableWidth - tableWidth) / 2 + pageMargin;
           if (headerX < pageMargin) headerX = pageMargin;
-          doc.font('Helvetica-Bold').fontSize(8);
-          pdfColumns.forEach(col => {
-            doc.rect(headerX, y, col.width, 20).fillAndStroke('#D6EAF8', '#000').fillColor('black');
-            doc.text(col.label, headerX + 3, y + 6, { width: col.width - 6, align: col.align || 'left' });
+          doc.font("Helvetica-Bold").fontSize(8);
+          pdfColumns.forEach((col) => {
+            doc
+              .rect(headerX, y, col.width, 20)
+              .fillAndStroke("#D6EAF8", "#000")
+              .fillColor("black");
+            doc.text(col.label, headerX + 3, y + 6, {
+              width: col.width - 6,
+              align: col.align || "left",
+            });
             headerX += col.width;
           });
           y += 20;
-          doc.font('Helvetica').fontSize(7);
+          doc.font("Helvetica").fontSize(7);
         }
         const rowData = { ...row, sno: index + 1 };
-        pdfColumns.forEach(col => {
+        pdfColumns.forEach((col) => {
           doc.rect(x, y, col.width, 18).stroke();
-          doc.fillColor('black').text(rowData[col.key]?.toString() || '--', x + 3, y + 5, { width: col.width - 6, align: col.align || 'left' });
+          doc
+            .fillColor("black")
+            .text(rowData[col.key]?.toString() || "--", x + 3, y + 5, {
+              width: col.width - 6,
+              align: col.align || "left",
+            });
           x += col.width;
         });
         y += 18;
       });
       doc.end();
-
-    } else if (type === 'excel') {
+    } else if (type === "excel") {
       const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet('Daily Performance Report');
+      const sheet = workbook.addWorksheet("Daily Performance Report");
       const excelHeaders = [
-        { header: 'S.No.', key: 'sno', width: 8 },
-        { header: 'Employee', key: 'empname', width: 25 },
-        { header: 'Date', key: 'date', width: 15 },
-        { header: 'Status', key: 'status', width: 10 },
-        { header: 'In Time (A)', key: 'FirstInTime', width: 12 },
-        { header: 'Out Time (B)', key: 'LastOutTime', width: 12 },
-        { header: 'Hours (C)', key: 'Hours_C', width: 12 },
-        { header: 'Out Hours (D)', key: 'OutHours_D', width: 12 },
-        { header: 'Hour(+/-) E', key: 'Hour_E', width: 12 },
-        { header: 'Balance Hours F', key: 'BalanceHours_F', width: 15 },
-        { header: 'Attendance From', key: 'attendanceFrom', width: 18 }
+        { header: "S.No.", key: "sno", width: 8 },
+        { header: "Employee", key: "empname", width: 25 },
+        { header: "Date", key: "date", width: 15 },
+        { header: "Status", key: "status", width: 10 },
+        { header: "In Time (A)", key: "FirstInTime", width: 12 },
+        { header: "Out Time (B)", key: "LastOutTime", width: 12 },
+        { header: "Hours (C)", key: "Hours_C", width: 12 },
+        { header: "Out Hours (D)", key: "OutHours_D", width: 12 },
+        { header: "Hour(+/-) E", key: "Hour_E", width: 12 },
+        { header: "Balance Hours F", key: "BalanceHours_F", width: 15 },
+        { header: "Attendance From", key: "attendanceFrom", width: 18 },
       ];
       sheet.columns = excelHeaders;
       sheet.getRow(1).eachCell((cell) => {
-        cell.font = { bold: true, color: { argb: 'FFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '0A5275' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        cell.font = { bold: true, color: { argb: "FFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "0A5275" },
+        };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
       });
       result.forEach((row, index) => {
         const rowData = { sno: index + 1, ...row };
         const insertedRow = sheet.addRow(rowData);
         insertedRow.eachCell((cell, colNumber) => {
           const columnKey = excelHeaders[colNumber - 1].key;
-          let align = 'left';
-          if (['sno', 'FirstInTime', 'LastOutTime', 'Hours_C', 'OutHours_D', 'Hour_E', 'BalanceHours_F', 'status', 'date'].includes(columnKey)) {
-            align = 'center';
+          let align = "left";
+          if (
+            [
+              "sno",
+              "FirstInTime",
+              "LastOutTime",
+              "Hours_C",
+              "OutHours_D",
+              "Hour_E",
+              "BalanceHours_F",
+              "status",
+              "date",
+            ].includes(columnKey)
+          ) {
+            align = "center";
           }
-          cell.alignment = { horizontal: align, vertical: 'middle' };
-          cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+          cell.alignment = { horizontal: align, vertical: "middle" };
+          cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
         });
       });
       const buffer = await workbook.xlsx.writeBuffer();
-      const base64Excel = buffer.toString('base64');
+      const base64Excel = buffer.toString("base64");
       res.status(200).json({
         isSuccess: true,
-        message: 'Report Excel generated successfully',
-        base64: base64Excel
+        message: "Report Excel generated successfully",
+        base64: base64Excel,
       });
     } else {
       res.status(200).json({
         isSuccess: true,
-        message: 'Report data retrieved',
-        data: result
+        message: "Report data retrieved",
+        data: result,
       });
     }
-
   } catch (error) {
-    console.error('OutReports Error:', error.message, error.stack); // Log stack for better debugging
+    console.error("OutReports Error:", error.message, error.stack); // Log stack for better debugging
     res.status(500).json({
       isSuccess: false,
       message: `Error generating report: ${error.message}`,
-      data: []
+      data: [],
+    });
+  }
+};
+
+// 45 break api
+
+const BreakAttendance = async (req, res) => {
+  const { employeeId, dateFrom, dateTo } = req.body;
+  
+  // Validate date range
+  if (new Date(dateFrom) > new Date(dateTo)) {
+    return res.status(400).json({ 
+      isSuccess: false, 
+      message: "Invalid date range - dateFrom must be before dateTo" 
+    });
+  }
+
+  try {
+    const pool = await getConnection();
+
+    // 1. Validate employee
+    const employeeQuery = `
+      SELECT 
+        e.userid, 
+        CONCAT(e.first_name, ' ', ISNULL(e.middle_name, ''), ' ', e.last_name) AS empname
+      FROM d00_emptable e
+      WHERE e.userid = @employeeId`;
+
+    const employeeResult = await pool
+      .request()
+      .input("employeeId", sql.VarChar(50), employeeId)
+      .query(employeeQuery);
+
+    if (!employeeResult.recordset.length) {
+      return res.status(404).json({ isSuccess: false, message: "Employee not found" });
+    }
+
+    const employee = employeeResult.recordset[0];
+
+    // 2. Fetch attendance records
+    const attendanceQuery = `
+      SELECT 
+        UserID,
+        AttDateTime,
+        verifyMode,
+        io_mode
+      FROM UserAttendance
+      WHERE UserID = @employeeId
+        AND CAST(AttDateTime AS DATE) BETWEEN @dateFrom AND @dateTo
+      ORDER BY AttDateTime
+    `;
+
+    const attendanceResult = await pool
+      .request()
+      .input("employeeId", sql.VarChar(50), employeeId)
+      .input("dateFrom", sql.Date, dateFrom)
+      .input("dateTo", sql.Date, dateTo)
+      .query(attendanceQuery);
+
+    const totalPunches = attendanceResult.recordset.length;
+
+    // 3. Process records
+    const outDetails = [];
+    let totalOutSeconds = 0;
+    let totalWorkingSeconds = 0;
+    let totalHoursESeconds = 0;
+
+    // Initialize dailyPunches object to track data per date
+    const dailyPunches = {};
+    attendanceResult.recordset.forEach(punch => {
+      const dateKey = moment.utc(punch.AttDateTime).format("YYYY-MM-DD");
+      if (!dailyPunches[dateKey]) {
+        dailyPunches[dateKey] = {
+          firstIn: null,
+          lastOut: null,
+          punches: [],
+          outSeconds: 0
+        };
+      }
+      dailyPunches[dateKey].punches.push(punch);
+    });
+
+    // Sort dates chronologically
+    const sortedDates = Object.keys(dailyPunches).sort((a, b) => new Date(a) - new Date(b));
+
+    // First pass: Calculate out durations for each date
+    sortedDates.forEach(dateKey => {
+      const dayPunches = dailyPunches[dateKey].punches;
+      let dateOutSeconds = 0;
+
+      // Calculate OUT durations for this date
+      for (let i = 0; i < dayPunches.length - 1; i++) {
+        const current = dayPunches[i];
+        const next = dayPunches[i + 1];
+
+        if (current.io_mode === '1' && next.io_mode === '0') {
+          const outTime = moment.utc(current.AttDateTime);
+          const inTime = moment.utc(next.AttDateTime);
+          const duration = moment.duration(inTime.diff(outTime));
+          dateOutSeconds += duration.asSeconds();
+        }
+      }
+
+      dailyPunches[dateKey].outSeconds = dateOutSeconds;
+      dailyPunches[dateKey].outDuration = moment.utc(dateOutSeconds * 1000).format("HH:mm:ss");
+      totalOutSeconds += dateOutSeconds;
+
+      // Find first IN and last OUT for working hours calculation
+      dailyPunches[dateKey].firstIn = dayPunches.find(p => p.io_mode === '0');
+      const outPunches = dayPunches.filter(p => p.io_mode === '1');
+      dailyPunches[dateKey].lastOut = outPunches.length > 0 ? outPunches[outPunches.length - 1] : null;
+
+      // Calculate working hours if both firstIn and lastOut exist
+      if (dailyPunches[dateKey].firstIn && dailyPunches[dateKey].lastOut) {
+        const firstInTime = moment.utc(dailyPunches[dateKey].firstIn.AttDateTime);
+        const lastOutTime = moment.utc(dailyPunches[dateKey].lastOut.AttDateTime);
+        const workingDuration = moment.duration(lastOutTime.diff(firstInTime));
+        dailyPunches[dateKey].workingSeconds = workingDuration.asSeconds();
+        dailyPunches[dateKey].workingHours = workingDuration;
+        totalWorkingSeconds += workingDuration.asSeconds();
+      }
+    });
+
+    // Second pass: Calculate HoursE and BalanceHours with carry forward
+    let carryForwardSeconds = 0; // Track positive HoursE to carry forward
+    
+    sortedDates.forEach(dateKey => {
+      const standardBreakSeconds = 45 * 60; // 45 minutes in seconds
+      const outSeconds = dailyPunches[dateKey].outSeconds || 0;
+      
+      // Calculate HoursE: (Standard break - actual break) plus any carry forward
+      let hoursESeconds = (standardBreakSeconds - outSeconds) + carryForwardSeconds;
+      
+      // Reset carry forward after applying it
+      carryForwardSeconds = 0;
+      
+      // If positive HoursE, carry it forward to next day and set current to 0
+      if (hoursESeconds > 0) {
+        carryForwardSeconds = hoursESeconds;
+        hoursESeconds = 0;
+      }
+      
+      // Store HoursE in seconds and formatted
+      dailyPunches[dateKey].hoursESeconds = hoursESeconds;
+      dailyPunches[dateKey].hoursE = formatDurationWithSign(hoursESeconds);
+      totalHoursESeconds += hoursESeconds;
+      
+      // Calculate BalanceHours: WorkingHours - absolute HoursE
+      const workingSeconds = dailyPunches[dateKey]?.workingSeconds || 0;
+      const balanceSeconds = workingSeconds - Math.abs(hoursESeconds);
+      dailyPunches[dateKey].balanceHours = formatDurationWithSign(balanceSeconds);
+    });
+
+    // Helper function to format duration with sign
+    function formatDurationWithSign(totalSeconds) {
+      if (totalSeconds === 0) return "00:00:00";
+      const sign = totalSeconds < 0 ? "-" : "";
+      const absSeconds = Math.abs(totalSeconds);
+      const duration = moment.duration(absSeconds, 'seconds');
+      return sign + 
+        duration.hours().toString().padStart(2, "0") + ":" + 
+        duration.minutes().toString().padStart(2, "0") + ":" + 
+        duration.seconds().toString().padStart(2, "0");
+    }
+
+    // Process OUT-IN pairs for the detailed report
+    for (let i = 0; i < attendanceResult.recordset.length - 1; i++) {
+      const current = attendanceResult.recordset[i];
+      const next = attendanceResult.recordset[i + 1];
+
+      if (current.io_mode === '1' && next.io_mode === '0') {
+        const outTime = moment.utc(current.AttDateTime);
+        const inTime = moment.utc(next.AttDateTime);
+        const duration = moment.duration(inTime.diff(outTime));
+        const dateKey = outTime.format("YYYY-MM-DD");
+
+        const workingHours = dailyPunches[dateKey]?.workingHours;
+        const workingHoursFormatted = workingHours ? 
+          `${workingHours.hours().toString().padStart(2, "0")}:${workingHours.minutes().toString().padStart(2, "0")}:${workingHours.seconds().toString().padStart(2, "0")}` : 
+          "N/A";
+
+        outDetails.push({
+          "S.No.": outDetails.length + 1,
+          "Employee": employee.empname,
+          "EmpCode": employee.userid,
+          "Date": outTime.format("DD-MMM-YYYY"),
+          "FirstIn": dailyPunches[dateKey]?.firstIn ? 
+                     moment.utc(dailyPunches[dateKey].firstIn.AttDateTime).format("HH:mm:ss") : "N/A",
+          "LastOut": dailyPunches[dateKey]?.lastOut ? 
+                     moment.utc(dailyPunches[dateKey].lastOut.AttDateTime).format("HH:mm:ss") : "N/A",
+          "WorkingHours": workingHoursFormatted,
+          "HoursE": dailyPunches[dateKey]?.hoursE || "00:00:00",
+          "BalanceHours": dailyPunches[dateKey]?.balanceHours || "00:00:00",
+          "Out Time": outTime.format("HH:mm:ss"),
+          "In Time": inTime.format("HH:mm:ss"),
+          "Out Duration": `${duration.hours().toString().padStart(2, "0")}:${duration.minutes().toString().padStart(2, "0")}:${duration.seconds().toString().padStart(2, "0")}`,
+          "Total Out Duration": dailyPunches[dateKey]?.outDuration || "00:00:00",
+          "Attendance From": current.verifyMode
+        });
+      }
+    }
+
+    // Calculate totals
+    const totalOutDuration = moment.utc(totalOutSeconds * 1000).format("HH:mm:ss");
+    const totalWorkingDuration = moment.utc(totalWorkingSeconds * 1000).format("HH:mm:ss");
+    const totalOutDays = (totalOutSeconds / (10 * 3600)).toFixed(2);
+    const totalHoursE = formatDurationWithSign(totalHoursESeconds);
+    const totalBalanceSeconds = totalWorkingSeconds - Math.abs(totalHoursESeconds);
+    const totalBalanceMinutes = totalBalanceSeconds / 60;
+    const totalBalanceHours = formatDurationWithSign(totalBalanceSeconds);
+    const perdaywork = (totalBalanceMinutes / 600).toFixed(2); 
+
+    // Prepare response
+    const response = {
+      isSuccess: true,
+      message: "Out details report generated successfully",
+      data: {
+        employee: `${employee.empname} | ${employee.userid}`,
+        dateRange: {
+          from: moment.utc(dateFrom).format("DD-MMM-YYYY"),
+          to: moment.utc(dateTo).format("DD-MMM-YYYY")
+        },
+        totalPunches: totalPunches,
+        outDetails: outDetails,
+        totals: {
+          perdaywork: perdaywork,
+          outDays: totalOutDays,
+          outHour: totalOutDuration,
+          workingHours: totalWorkingDuration,
+          hoursE: totalHoursE,
+          balanceHours: totalBalanceHours
+        }
+      }
+    };
+
+    res.json(response);
+  } catch (err) {
+    console.error("Error in BreakAttendance:", err);
+    res.status(500).json({
+      isSuccess: false,
+      message: `Server error: ${err.message}`,
     });
   }
 };
 
 
+
+// PunchCorrection
+const PunchCorrection = async (req, res) => {
+  const { userId, date, inTime, outTime, deviceId = 'MANUAL' } = req.body;
+
+  // Validate required fields
+  if (!userId || !date) {
+    return res.status(400).json({
+      isSuccess: false,
+      message: 'Missing required fields (userId, date)'
+    });
+  }
+
+  // Validate at least one time is provided
+  if (!inTime && !outTime) {
+    return res.status(400).json({
+      isSuccess: false,
+      message: 'At least one of inTime or outTime must be provided'
+    });
+  }
+
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    // Process IN punch if provided
+    if (inTime) {
+      const inDateTime = new Date(`${date}T${inTime.includes(':') ? inTime : inTime + ':00'}`);
+      
+      // Try to update existing record first
+      const updateResult = await transaction.request()
+        .input('deviceId', sql.NVarChar, deviceId)
+        .input('userId', sql.Int, userId)
+        .input('attDateTime', sql.DateTime, inDateTime)
+        .query(`
+          UPDATE UserAttendance 
+          SET 
+            AttState = 0,
+            VerifyMode = 99,
+            UpdateedOn = GETDATE(),
+            IsAbnomal = 1,
+            upload = 1,
+            io_mode = 0
+          WHERE 
+            DeviceID = @deviceId 
+            AND UserID = @userId 
+            AND AttDateTime = @attDateTime
+        `);
+
+      // If no existing record, insert new one
+      if (updateResult.rowsAffected[0] === 0) {
+        await transaction.request()
+          .input('deviceId', sql.NVarChar, deviceId)
+          .input('userId', sql.Int, userId)
+          .input('attDateTime', sql.DateTime, inDateTime)
+          .query(`
+            INSERT INTO UserAttendance (
+              DeviceID, UserID, AttState, VerifyMode, AttDateTime, 
+              UpdateedOn, IsAbnomal, upload, io_mode
+            ) VALUES (
+              @deviceId, @userId, 0, 99, @attDateTime,
+              GETDATE(), 1, 1, 0
+            )
+          `);
+      }
+    }
+
+    // Process OUT punch if provided
+    if (outTime) {
+      const outDateTime = new Date(`${date}T${outTime.includes(':') ? outTime : outTime + ':00'}`);
+      
+      const updateResult = await transaction.request()
+        .input('deviceId', sql.NVarChar, deviceId)
+        .input('userId', sql.Int, userId)
+        .input('attDateTime', sql.DateTime, outDateTime)
+        .query(`
+          UPDATE UserAttendance 
+          SET 
+            AttState = 1,
+            VerifyMode = 99,
+            UpdateedOn = GETDATE(),
+            IsAbnomal = 1,
+            upload = 1,
+            io_mode = 1
+          WHERE 
+            DeviceID = @deviceId 
+            AND UserID = @userId 
+            AND AttDateTime = @attDateTime
+        `);
+
+      if (updateResult.rowsAffected[0] === 0) {
+        await transaction.request()
+          .input('deviceId', sql.NVarChar, deviceId)
+          .input('userId', sql.Int, userId)
+          .input('attDateTime', sql.DateTime, outDateTime)
+          .query(`
+            INSERT INTO UserAttendance (
+              DeviceID, UserID, AttState, VerifyMode, AttDateTime, 
+              UpdateedOn, IsAbnomal, upload, io_mode
+            ) VALUES (
+              @deviceId, @userId, 1, 99, @attDateTime,
+              GETDATE(), 1, 1, 1
+            )
+          `);
+      }
+    }
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      isSuccess: true,
+      message: 'Attendance correction processed successfully'
+    });
+
+  } catch (err) {
+    await transaction.rollback();
+    console.error('Error in PunchCorrection:', err);
+    
+    if (err.message.includes('PRIMARY KEY')) {
+      return res.status(409).json({
+        isSuccess: false,
+        message: 'Duplicate attendance record detected',
+        suggestion: 'Try again with slightly different time (e.g., add seconds)'
+      });
+    }
+
+    return res.status(500).json({
+      isSuccess: false,
+      message: `Error processing correction: ${err.message}`
+    });
+  }
+};
+
 module.exports = {
   handlePunchReport,
   handleDailyReport,
   handleMonthlyReport,
-  OutReports
+  OutReports,
+  BreakAttendance,
+  PunchCorrection
 };

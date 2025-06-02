@@ -99,39 +99,66 @@ const getArea = async (req, res) => {
 };
 
 const deleteArea = async (req, res) => {
-    try {
-      const { id } = req.params;
-  
-      if (!id || isNaN(id)) {
-        return res.status(400).json({ success: false, message: 'Invalid ID' });
-      }
-  
-      const pool = await getConnection();
-  
-      const result = await pool.request()
-        .input('id', sql.Int, id)
-        .query(`DELETE FROM d05_area WHERE Id = @id;`);
-  
-      if (result.rowsAffected[0] > 0) {
-        res.json({
-          success: true,
-          message: 'Deleted successfully'
-        });
-      } else {
-        res.status(404).json({
-          success: false,
-          message: 'Area not found'
-        });
-      }
-    } catch (error) {
-      console.error('Error in deleteArea:', error);
-      res.status(500).json({
+  try {
+    const { id } = req.params;
+    // console.log("id:", id);
+
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID' });
+    }
+
+    const pool = await getConnection();
+
+    // Check if area_id is used in d06_beat
+    const existingAreaId = await pool.request()
+      .input('id', sql.Int, id)
+      .query(`SELECT COUNT(*) AS total FROM dbo.d06_beat WHERE area_id = @id`);
+
+    if (existingAreaId.recordset[0].total > 0) {
+      return res.status(400).json({
         success: false,
-        message: 'Server error',
-        error: error.message
+        message: "The Area cannot be deleted; it's already used in beat"
       });
     }
-  };
+
+    // Check if area_id is used in employee table (replace 'employee' with correct table name)
+    const empAreaId = await pool.request()
+      .input('id', sql.Int, id)
+      .query(`SELECT COUNT(*) AS total FROM dbo.employee WHERE area_id = @id`);
+
+    if (empAreaId.recordset[0].total > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "The Area exists in employee table"
+      });
+    }
+
+    // Proceed with delete
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .query(`DELETE FROM d05_area WHERE Id = @id`);
+
+    if (result.rowsAffected[0] > 0) {
+      res.json({
+        success: true,
+        message: 'Deleted successfully'
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'Area not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error in deleteArea:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
   
 
 module.exports = {

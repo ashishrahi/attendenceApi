@@ -22,6 +22,10 @@ router.post('/daily', ReportController.handleDailyReport);
 router.post('/montly', ReportController.handleMonthlyReport);
 router.post('/punch', ReportController.handlePunchReport);
 router.post('/out', ReportController.OutReports);
+router.post('/breakattendance', ReportController.BreakAttendance);
+router.post('/punch-correction', ReportController.PunchCorrection);
+
+
 
 
 module.exports = router;

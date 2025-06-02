@@ -33,7 +33,6 @@ const createBeat = async (req, res) => {
   const updateBeat = async (req, res) => {
     try {
       const { id, name, code, area_id } = req.body;
-  
       const pool = await getConnection();
   
       await pool.request()
@@ -71,7 +70,7 @@ const getBeat = async (req, res) => {
         const pool = await getConnection();
         const result = await pool.request()
             .query("SELECT DISTINCT * FROM [iDMS].[dbo].[d06_beat]")
-        console.log(result);
+        // console.log(result);
         const area = result.recordset;
 
         res.json({
