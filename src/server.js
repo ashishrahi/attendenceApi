@@ -36,6 +36,8 @@ const LeaveBalanceRoutes = require('./routes/LeaveBalanceRoutes');
 const LeaveCategoryRoutes = require('./routes/LeaveCategoryRoutes');
 const EmployeeTypeRoutes = require('./routes/EmployeeTypeRoutes');
 const EmployeeMapLeaveTypeController = require('./routes/EmployeeMapLeaveTypeRoutes');
+const HelpCreationRoutes = require('./routes/HelpCreationRoutes')
+const DashboardRoutes = require('./routes/DashboardRoutes')
 const jwt = require('jsonwebtoken');
 const app = express();
 const server = http.createServer(app);
@@ -84,7 +86,8 @@ app.use('/api/leavebalance', LeaveBalanceRoutes);
 app.use('/api/leavecategory', LeaveCategoryRoutes);
 app.use('/api/employeetype', EmployeeTypeRoutes);
 app.use('/api/employeemap', EmployeeMapLeaveTypeController);
-
+app.use('/api/helpcreate', HelpCreationRoutes);
+app.use('/api/dashboard', DashboardRoutes);
 
 // Swagger setup
 const swaggerFilePath = path.join(__dirname, "./swagger-output.json");
@@ -103,7 +106,7 @@ app.use((err, req, res, next) => {
 
 // Server setup
 const PORT = process.env.PORT || 5001;
-const HOST = process.env.HOST || '192.168.1.34';
+const HOST = process.env.HOST || '192.168.1.6';
 
 server.listen(PORT, HOST, () => {
   console.log(`Server is running on http://${HOST}:${PORT}`);
