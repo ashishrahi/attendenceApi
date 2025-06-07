@@ -1617,7 +1617,6 @@ const BreakAttendance = async (req, res) => {
           salaryType: salary.SalaryType
         };
       });
-      console.log("salaryMap",salaryMap)
 
       // Fetch break duration
       const breakQuery = `
@@ -1755,23 +1754,46 @@ const BreakAttendance = async (req, res) => {
         // Get employee salary
         const employeeSalary = salaryMap[employee.userid] || { salaryAmt: 0, salaryType: 'Monthly' };
         const monthlySalary = employeeSalary.salaryAmt;
-
-
         const salaryType = employeeSalary.salaryType;
         
-        // Calculate hourly salary based on salary type
-        let hoursSalary = 0;
-        if (salaryType === 'Monthly') {
-          // Assuming 26 working days per month and standard working hours per day
-          hoursSalary = monthlySalary / (26 * standardWorkingHours);
-          console.log('monthlySalary',monthlySalary)
-          console.log('hoursSalary',hoursSalary)
+        // Calculate minuteSalary based on salary type
+        let minuteSalary = 0;
+        let hourlySalary = 0;
 
-        } else if (salaryType === 'Daily') {
-          hoursSalary = monthlySalary / standardWorkingHours;
-        } else {
-          // For hourly or other types, use the amount directly
-          hoursSalary = monthlySalary;
+        if (salaryType === 'Monthly') {
+          // Calculate working days in the date range (excluding Sundays and holidays)
+          let workingDaysInRange = 0;
+          let currentDate = moment(dateFrom);
+          const endDate = moment(dateTo);
+          
+          while (currentDate <= endDate) {
+            const dateKey = currentDate.format("YYYY-MM-DD");
+            const isSunday = currentDate.isoWeekday() === 7;
+            const isHoliday = holidayMap[dateKey] !== undefined;
+            
+            if (!isSunday && !isHoliday) {
+              workingDaysInRange++;
+            }
+            currentDate = currentDate.add(1, 'day');
+          }
+          
+          // Use at least 1 to avoid division by zero
+          workingDaysInRange = Math.max(workingDaysInRange, 1);
+          minuteSalary = monthlySalary / (workingDaysInRange * standardWorkingHours * 60);
+          hourlySalary = monthlySalary / (workingDaysInRange * standardWorkingHours);
+        } 
+        else if (salaryType === 'Daily') {
+          minuteSalary = monthlySalary / (standardWorkingHours * 60);
+          hourlySalary = monthlySalary / standardWorkingHours;
+        } 
+        else if (salaryType === 'Hourly') {
+          minuteSalary = monthlySalary / 60;
+          hourlySalary = monthlySalary;
+        }
+        else {
+          // For other types, default to hourly calculation
+          minuteSalary = monthlySalary / 60;
+          hourlySalary = monthlySalary;
         }
 
         // Group punches by date
@@ -2058,7 +2080,9 @@ const BreakAttendance = async (req, res) => {
               "StandardBreakDuration": standardBreakSeconds / 60 + " minutes",
               "StandardWorkingHours": standardWorkingHours + " hours",
               "SundayType": sundayType,
-              "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours"
+              "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours",
+              "MinuteSalary": minuteSalary.toFixed(2),
+              "HourlySalary": hourlySalary.toFixed(2)
             });
           }
         }
@@ -2091,7 +2115,9 @@ const BreakAttendance = async (req, res) => {
               "StandardBreakDuration": standardBreakSeconds / 60 + " minutes",
               "StandardWorkingHours": standardWorkingHours + " hours",
               "SundayType": sundayType,
-              "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours"
+              "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours",
+              "MinuteSalary": minuteSalary.toFixed(2),
+              "HourlySalary": hourlySalary.toFixed(2)
             });
             daily.processedForOutDetails = true;
           }
@@ -2176,7 +2202,8 @@ const BreakAttendance = async (req, res) => {
             standardBreakDuration: standardBreakSeconds / 60 + " minutes",
             sundayType: sundayType,
             sundayWorkingHours: sundayWorkingSeconds / 3600 + " hours",
-            hoursSalary: hoursSalary.toFixed(2),
+            minuteSalary: minuteSalary.toFixed(2),
+            hourlySalary: hourlySalary.toFixed(2),
             salaryType: salaryType
           }
         });
@@ -2204,7 +2231,8 @@ const BreakAttendance = async (req, res) => {
         message: `Server error: ${err.message}`,
       });
     }
-  };// PunchCorrection
+  };
+  // PunchCorrection
 const PunchCorrection = async (req, res) => {
   const { userId, date, inTime, outTime, deviceId = 'MANUAL' } = req.body;
 
