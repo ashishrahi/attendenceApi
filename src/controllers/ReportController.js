@@ -1552,6 +1552,7 @@ const OutReports = async (req, res) => {
 const BreakAttendance = async (req, res) => {
     const { employeeId, dateFrom, dateTo } = req.body;
 
+    // Validate date range
     if (new Date(dateFrom) > new Date(dateTo)) {
       return res.status(400).json({
         isSuccess: false,
@@ -1577,7 +1578,7 @@ const BreakAttendance = async (req, res) => {
     try {
       const pool = await getConnection();
 
-      // Fetch employee details
+      // 1. Fetch employee details (all employees if employeeId is -1)
       const employeeQuery = `
         SELECT 
           e.userid, 
@@ -1586,7 +1587,8 @@ const BreakAttendance = async (req, res) => {
           g.name AS gender_name
         FROM d00_emptable e
         LEFT JOIN d07_gender g ON e.gender_id = g.id
-        WHERE (${employeeId} = -1 OR e.userid = @employeeId)`;
+        WHERE (@employeeId = -1 OR e.userid = @employeeId)
+        ORDER BY e.userid`;
 
       const employeeResult = await pool
         .request()
@@ -1594,21 +1596,22 @@ const BreakAttendance = async (req, res) => {
         .query(employeeQuery);
 
       if (!employeeResult.recordset.length) {
-        return res.status(404).json({ isSuccess: false, message: "No employees found matching the criteria" });
+        return res.status(404).json({ 
+          isSuccess: false, 
+          message: "No employees found matching the criteria" 
+        });
       }
 
-      // Fetch salary information
+      // 2. Fetch salary information for all relevant employees
       const salaryQuery = `
         SELECT user_id, SalaryAmt, SalaryType
         FROM SalaryInfo
-      `;
+        WHERE (@employeeId = -1 OR user_id = @employeeId)`;
 
-      const salaryRequest = pool.request()
-        .input("dateTo", sql.Date, dateTo);
-      if (employeeId !== -1) {
-        salaryRequest.input("employeeId", sql.VarChar(50), employeeId);
-      }
-      const salaryResult = await salaryRequest.query(salaryQuery);
+      const salaryResult = await pool
+        .request()
+        .input("employeeId", sql.VarChar(50), employeeId)
+        .query(salaryQuery);
 
       const salaryMap = {};
       salaryResult.recordset.forEach(salary => {
@@ -1618,12 +1621,11 @@ const BreakAttendance = async (req, res) => {
         };
       });
 
-      // Fetch break duration
+      // 3. Fetch break duration configuration
       const breakQuery = `
         SELECT intervalMinutes 
         FROM dbo.BreakMaster 
-        WHERE isActive = 1
-      `;
+        WHERE isActive = 1`;
       const breakResult = await pool.request().query(breakQuery);
       
       if (!breakResult.recordset.length) {
@@ -1634,7 +1636,7 @@ const BreakAttendance = async (req, res) => {
       }
       const standardBreakSeconds = breakResult.recordset[0].intervalMinutes * 60;
 
-      // Fetch attendance settings
+      // 4. Fetch attendance settings for all relevant employees
       const settingsQuery = `
         WITH LatestSettings AS (
           SELECT 
@@ -1643,12 +1645,16 @@ const BreakAttendance = async (req, res) => {
             SundayType,
             ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY EffectiveDate DESC) as rn
           FROM AttendanceSetting
+          WHERE @employeeId = -1 OR user_id = @employeeId
         )
         SELECT user_id, WorksHour, SundayType
         FROM LatestSettings
-        WHERE rn = 1
-      `;
-      const settingsResult = await pool.request().query(settingsQuery);
+        WHERE rn = 1`;
+      
+      const settingsResult = await pool
+        .request()
+        .input("employeeId", sql.VarChar(50), employeeId)
+        .query(settingsQuery);
       
       const workHoursMap = {};
       settingsResult.recordset.forEach(setting => {
@@ -1658,8 +1664,8 @@ const BreakAttendance = async (req, res) => {
         };
       });
 
-      // Fetch attendance data
-      let attendanceQuery = `
+      // 5. Fetch attendance data for the date range
+      const attendanceQuery = `
         SELECT 
           UserID,
           AttDateTime,
@@ -1667,27 +1673,23 @@ const BreakAttendance = async (req, res) => {
           io_mode
         FROM UserAttendance
         WHERE CAST(AttDateTime AS DATE) BETWEEN @dateFrom AND @dateTo
-      `;
-      if (employeeId !== -1) {
-        attendanceQuery += ` AND UserID = @employeeId`;
-      }
-      attendanceQuery += ` ORDER BY UserID, AttDateTime`;
+          AND (@employeeId = -1 OR UserID = @employeeId)
+        ORDER BY UserID, AttDateTime`;
 
-      const attendanceRequest = pool.request()
+      const attendanceResult = await pool
+        .request()
         .input("dateFrom", sql.Date, dateFrom)
-        .input("dateTo", sql.Date, dateTo);
-      if (employeeId !== -1) {
-        attendanceRequest.input("employeeId", sql.VarChar(50), employeeId);
-      }
-      const attendanceResult = await attendanceRequest.query(attendanceQuery);
+        .input("dateTo", sql.Date, dateTo)
+        .input("employeeId", sql.VarChar(50), employeeId)
+        .query(attendanceQuery);
 
-      // Fetch holidays
+      // 6. Fetch holidays for the date range
       const holidayQuery = `
         SELECT Date, HolidayName, Description
         FROM dbo.holiDaySchedule
         WHERE Date BETWEEN @dateFrom AND @dateTo
-          AND IsActive = 1
-      `;
+          AND IsActive = 1`;
+      
       const holidayResult = await pool
         .request()
         .input("dateFrom", sql.Date, dateFrom)
@@ -1724,9 +1726,11 @@ const BreakAttendance = async (req, res) => {
         ].join(":");
       }
 
-      // Process each employee
+      // Process each employee's data
       const employeeReports = [];
       const attendanceByEmployee = {};
+      
+      // Group attendance data by employee
       attendanceResult.recordset.forEach(punch => {
         if (!attendanceByEmployee[punch.UserID]) {
           attendanceByEmployee[punch.UserID] = [];
@@ -1743,7 +1747,10 @@ const BreakAttendance = async (req, res) => {
         const dailyPunches = {};
 
         // Get employee settings
-        const employeeSettings = workHoursMap[employee.userid] || { worksHour: 9, sundayType: 'Standard' };
+        const employeeSettings = workHoursMap[employee.userid] || { 
+          worksHour: 9, 
+          sundayType: 'Standard' 
+        };
         const standardWorkingHours = employeeSettings.worksHour;
         const sundayType = employeeSettings.sundayType;
         const standardWorkingSeconds = standardWorkingHours * 3600;
@@ -1752,51 +1759,38 @@ const BreakAttendance = async (req, res) => {
           : standardWorkingSeconds;
 
         // Get employee salary
-        const employeeSalary = salaryMap[employee.userid] || { salaryAmt: 0, salaryType: 'Monthly' };
+        const employeeSalary = salaryMap[employee.userid] || { 
+          salaryAmt: 0, 
+          salaryType: 'Monthly' 
+        };
         const monthlySalary = employeeSalary.salaryAmt;
         const salaryType = employeeSalary.salaryType;
         
-        // Calculate minuteSalary based on salary type
+        // Calculate salary rates
+        let dailySalary = 0;
         let minuteSalary = 0;
         let hourlySalary = 0;
 
         if (salaryType === 'Monthly') {
-          // Calculate working days in the date range (excluding Sundays and holidays)
-          let workingDaysInRange = 0;
-          let currentDate = moment(dateFrom);
-          const endDate = moment(dateTo);
-          
-          while (currentDate <= endDate) {
-            const dateKey = currentDate.format("YYYY-MM-DD");
-            const isSunday = currentDate.isoWeekday() === 7;
-            const isHoliday = holidayMap[dateKey] !== undefined;
-            
-            if (!isSunday && !isHoliday) {
-              workingDaysInRange++;
-            }
-            currentDate = currentDate.add(1, 'day');
-          }
-          
-          // Use at least 1 to avoid division by zero
-          workingDaysInRange = Math.max(workingDaysInRange, 1);
-          minuteSalary = monthlySalary / (workingDaysInRange * standardWorkingHours * 60);
-          hourlySalary = monthlySalary / (workingDaysInRange * standardWorkingHours);
+          const currentMonth = moment(dateFrom).month();
+          const currentYear = moment(dateFrom).year();
+          const totalDaysInMonth = moment(`${currentYear}-${currentMonth + 1}`, "YYYY-MM").daysInMonth();
+          dailySalary = monthlySalary / totalDaysInMonth;
         } 
         else if (salaryType === 'Daily') {
-          minuteSalary = monthlySalary / (standardWorkingHours * 60);
-          hourlySalary = monthlySalary / standardWorkingHours;
+          dailySalary = monthlySalary;
         } 
         else if (salaryType === 'Hourly') {
-          minuteSalary = monthlySalary / 60;
-          hourlySalary = monthlySalary;
+          dailySalary = monthlySalary * standardWorkingHours;
         }
         else {
-          // For other types, default to hourly calculation
-          minuteSalary = monthlySalary / 60;
-          hourlySalary = monthlySalary;
+          dailySalary = monthlySalary * standardWorkingHours;
         }
 
-        // Group punches by date
+        minuteSalary = dailySalary / (standardWorkingHours * 60);
+        hourlySalary = dailySalary / standardWorkingHours;
+
+        // Group punches by date and process each day
         employeeAttendance.forEach(punch => {
           const dateKey = moment.utc(punch.AttDateTime).format("YYYY-MM-DD");
           if (!dailyPunches[dateKey]) {
@@ -1821,14 +1815,15 @@ const BreakAttendance = async (req, res) => {
               hoursE: "00:00:00",
               balanceSeconds: 0,
               balanceHours: "00:00:00",
-              processedForOutDetails: false
+              processedForOutDetails: false,
+              hasOutTime: false
             };
           }
           dailyPunches[dateKey].punches.push(punch);
           dailyPunches[dateKey].hasAttendance = true;
         });
 
-        // Include all dates in range
+        // Include all dates in the range, even those without punches
         const allDatesInRange = [];
         let currentDate = moment.utc(dateFrom);
         const endDate = moment.utc(dateTo);
@@ -1859,16 +1854,19 @@ const BreakAttendance = async (req, res) => {
               hoursE: "00:00:00",
               balanceSeconds: 0,
               balanceHours: "00:00:00",
-              processedForOutDetails: false
+              processedForOutDetails: false,
+              hasOutTime: false
             };
           }
 
+          // Mark holidays
           if (holidayMap[dateKey]) {
             dailyPunches[dateKey].isHoliday = true;
             dailyPunches[dateKey].holidayName = holidayMap[dateKey].name;
             dailyPunches[dateKey].holidayDescription = holidayMap[dateKey].description;
           }
 
+          // Mark Sundays and set required working hours
           if (currentDate.isoWeekday() === 7) {
             dailyPunches[dateKey].isSunday = true;
             dailyPunches[dateKey].requiredWorkingSeconds = sundayWorkingSeconds;
@@ -1885,21 +1883,26 @@ const BreakAttendance = async (req, res) => {
           const punches = daily.punches;
           
           if (punches.length > 0) {
-            // Find first in punch
             const firstIn = punches.find(p => p.io_mode === '0');
-            // Find last out punch
             const lastOut = punches.slice().reverse().find(p => p.io_mode === '1');
             
-            if (firstIn && lastOut) {
-              const start = moment.utc(firstIn.AttDateTime);
-              const end = moment.utc(lastOut.AttDateTime);
-              const duration = moment.duration(end.diff(start));
-              
-              daily.workingSeconds = duration.asSeconds();
-              daily.workingHours = duration;
-              daily.workingHoursFormatted = formatDuration(duration);
+            if (firstIn) {
               daily.firstIn = firstIn;
-              daily.lastOut = lastOut;
+              if (lastOut) {
+                const start = moment.utc(firstIn.AttDateTime);
+                const end = moment.utc(lastOut.AttDateTime);
+                const duration = moment.duration(end.diff(start));
+                
+                daily.workingSeconds = duration.asSeconds();
+                daily.workingHours = duration;
+                daily.workingHoursFormatted = formatDuration(duration);
+                daily.lastOut = lastOut;
+              } else {
+                // Only first in exists
+                daily.workingSeconds = 0;
+                daily.workingHours = moment.duration(0);
+                daily.workingHoursFormatted = "00:00:00";
+              }
             }
           }
         });
@@ -1909,6 +1912,7 @@ const BreakAttendance = async (req, res) => {
           const daily = dailyPunches[dateKey];
           const punches = daily.punches;
           let dateOutSeconds = 0;
+          let hasOutTime = false;
 
           for (let i = 0; i < punches.length - 1; i++) {
             const current = punches[i];
@@ -1918,11 +1922,13 @@ const BreakAttendance = async (req, res) => {
               const inTime = moment.utc(next.AttDateTime);
               const duration = moment.duration(inTime.diff(outTime));
               dateOutSeconds += duration.asSeconds();
+              hasOutTime = true;
             }
           }
 
           daily.outSeconds = dateOutSeconds;
           daily.outDuration = formatDurationWithSign(dateOutSeconds);
+          daily.hasOutTime = hasOutTime;
           employeeTotalOutSeconds += dateOutSeconds;
         });
 
@@ -1934,7 +1940,7 @@ const BreakAttendance = async (req, res) => {
           }
         });
 
-        // Present, absent and earned Sundays count
+        // Count present, absent and earned Sundays
         let presentDays = 0;
         let absentDays = 0;
         let earnedSundayCount = 0;
@@ -1981,7 +1987,7 @@ const BreakAttendance = async (req, res) => {
           }
         });
 
-        // Calculate HoursE and Balance Hours with new carry forward logic
+        // Calculate HoursE and Balance Hours with carry forward
         let carryForwardSeconds = 0;
         sortedDates.forEach(dateKey => {
           const weekday = moment.utc(dateKey).isoWeekday();
@@ -1989,28 +1995,19 @@ const BreakAttendance = async (req, res) => {
           const daily = dailyPunches[dateKey];
           const requiredSeconds = daily.requiredWorkingSeconds;
           
-          // Calculate base hoursE (standard break - actual out time)
-          let hoursESeconds = standardBreakSeconds - daily.outSeconds;
+          let hoursESeconds = 0;
           
-          // Apply any carried forward time from previous day
-          hoursESeconds += carryForwardSeconds;
-          carryForwardSeconds = 0; // Reset after applying
-
-          // NEW LOGIC: If hoursE is positive, set to zero and don't carry forward
-          // If negative, keep the negative value and carry it forward
-          if (hoursESeconds > 0) {
-            hoursESeconds = 0;
-          } else {
-            // Carry forward the negative value to next day
-            carryForwardSeconds = hoursESeconds;
+          if (daily.hasOutTime) {
+            hoursESeconds = standardBreakSeconds - daily.outSeconds;
           }
+          
+          hoursESeconds += carryForwardSeconds;
+          carryForwardSeconds = 0;
 
-          // Store the calculated hoursE (will be zero or negative)
           daily.hoursESeconds = hoursESeconds;
           daily.hoursE = formatDurationWithSign(hoursESeconds);
           employeeTotalHoursESeconds += hoursESeconds;
 
-          // Calculate balance seconds
           let balanceSeconds = 0;
           const workingSeconds = daily.workingSeconds || 0;
           
@@ -2025,7 +2022,6 @@ const BreakAttendance = async (req, res) => {
           daily.balanceSeconds = balanceSeconds;
           daily.balanceHours = formatDurationWithSign(balanceSeconds);
           
-          // Track weekly balances (weekdays only)
           if (weekday >= 1 && weekday <= 6) {
             if (!weekBalanceMap[weekNum]) {
               weekBalanceMap[weekNum] = 0;
@@ -2045,7 +2041,7 @@ const BreakAttendance = async (req, res) => {
           }
         });
 
-        // Prepare outDetails - show values for all entries
+        // Prepare outDetails - include all entries with punches
         for (let i = 0; i < employeeAttendance.length - 1; i++) {
           const current = employeeAttendance[i];
           const next = employeeAttendance[i + 1];
@@ -2082,16 +2078,18 @@ const BreakAttendance = async (req, res) => {
               "SundayType": sundayType,
               "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours",
               "MinuteSalary": minuteSalary.toFixed(2),
-              "HourlySalary": hourlySalary.toFixed(2)
+              "HourlySalary": hourlySalary.toFixed(2),
+              "DailySalary": dailySalary.toFixed(2)
             });
+            daily.processedForOutDetails = true;
           }
         }
 
-        // Include days with punches but no out-in pairs
+        // Include all days with punches, even those without out-in pairs
         sortedDates.forEach(dateKey => {
           const daily = dailyPunches[dateKey];
-          if (daily.hasAttendance && daily.punches.length > 0 && daily.punches.some(p => p.io_mode === '0') && !daily.processedForOutDetails) {
-            const firstIn = daily.firstIn;
+          if (daily.hasAttendance && !daily.processedForOutDetails) {
+            const firstIn = daily.punches.find(p => p.io_mode === '0');
             employeeOutDetails.push({
               "S.No.": employeeOutDetails.length + 1,
               "Employee": employee.empname,
@@ -2117,7 +2115,8 @@ const BreakAttendance = async (req, res) => {
               "SundayType": sundayType,
               "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours",
               "MinuteSalary": minuteSalary.toFixed(2),
-              "HourlySalary": hourlySalary.toFixed(2)
+              "HourlySalary": hourlySalary.toFixed(2),
+              "DailySalary": dailySalary.toFixed(2)
             });
             daily.processedForOutDetails = true;
           }
@@ -2126,7 +2125,7 @@ const BreakAttendance = async (req, res) => {
         // Sort outDetails by date
         employeeOutDetails.sort((a, b) => new Date(a.Date) - new Date(b.Date));
 
-        // Calculate totals from dailyPunches (source of truth)
+        // Calculate totals from dailyPunches
         let totalBalanceSeconds = 0;
         let totalSundayValue = 0;
         let totalHoursESeconds = 0;
@@ -2149,7 +2148,7 @@ const BreakAttendance = async (req, res) => {
           }
         });
 
-        // Format all totals
+        // Format totals
         const totalOutDuration = formatDurationWithSign(totalOutSeconds);
         const totalWorkingDuration = formatDurationWithSign(totalWorkingSeconds);
         const totalOutDays = (totalOutSeconds / (standardWorkingHours * 3600)).toFixed(2);
@@ -2157,7 +2156,6 @@ const BreakAttendance = async (req, res) => {
         const totalBalanceHours = formatDurationWithSign(totalBalanceSeconds);
         const totalSundayValueFormatted = formatDurationWithSign(totalSundayValue);
         
-        // Calculate per day work average (using seconds values)
         const perdaywork = presentDaysCount > 0 
           ? (totalBalanceSeconds / (standardWorkingHours * 3600)).toFixed(2)
           : "0.00";
@@ -2165,11 +2163,9 @@ const BreakAttendance = async (req, res) => {
         const totalDaysInRange = moment(dateTo).diff(moment(dateFrom), 'days') + 1;
         const workingDaysCount = totalDaysInRange - totalSundays - holidayResult.recordset.length;
         
-        // Calculate working days in time format (HH:MM:SS)
         const workingDaysInSeconds = workingDaysCount * standardWorkingHours * 3600;
         const workingDaysFormatted = formatDurationWithSign(workingDaysInSeconds);
 
-        // Calculate earned Sundays based on the formula: (Total Sundays in range / working days count) * perdaywork
         let calculatedEarnedSundays = 0;
         if (workingDaysCount > 0) {
           const totalSundaysInRange = countSundaysInRange(dateFrom, dateTo);
@@ -2204,7 +2200,11 @@ const BreakAttendance = async (req, res) => {
             sundayWorkingHours: sundayWorkingSeconds / 3600 + " hours",
             minuteSalary: minuteSalary.toFixed(2),
             hourlySalary: hourlySalary.toFixed(2),
-            salaryType: salaryType
+            dailySalary: dailySalary.toFixed(2),
+            salaryType: salaryType,
+            totalDaysInMonth: salaryType === 'Monthly' ? 
+              moment(`${moment(dateFrom).year()}-${moment(dateFrom).month() + 1}`, "YYYY-MM").daysInMonth() : 
+              null
           }
         });
       }
@@ -2231,8 +2231,8 @@ const BreakAttendance = async (req, res) => {
         message: `Server error: ${err.message}`,
       });
     }
-  };
-  // PunchCorrection
+};
+ // PunchCorrection
 const PunchCorrection = async (req, res) => {
   const { userId, date, inTime, outTime, deviceId = 'MANUAL' } = req.body;
 

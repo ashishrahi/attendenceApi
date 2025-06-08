@@ -106,7 +106,7 @@ app.use((err, req, res, next) => {
 
 // Server setup
 const PORT = process.env.PORT || 5001;
-const HOST = process.env.HOST || '192.168.1.34';
+const HOST = process.env.HOST || '192.168.1.6';
 
 server.listen(PORT, HOST, () => {
   console.log(`Server is running on http://${HOST}:${PORT}`);
