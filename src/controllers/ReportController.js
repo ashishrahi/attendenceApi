@@ -1,4 +1,8 @@
 const { getConnection, sql } = require("../config/database");
+const {
+  generateCustomPDFReport,
+  generateCustomExcelReport,
+} = require("../utilities/helper/breakTableAttendanceExport");
 const moment = require("moment");
 const PDFDocument = require("pdfkit");
 const getStream = require("get-stream");
@@ -1548,38 +1552,758 @@ const OutReports = async (req, res) => {
   }
 };
 
-// 45 break api
+// 45 break api last 08/06/2025
+// const BreakAttendance = async (req, res) => {
+//     const { employeeId, dateFrom, dateTo } = req.body;
+
+//     // Validate date range
+//     if (new Date(dateFrom) > new Date(dateTo)) {
+//       return res.status(400).json({
+//         isSuccess: false,
+//         message: "Invalid date range - dateFrom must be before dateTo"
+//       });
+//     }
+
+//     // Helper function to count Sundays in date range
+//     function countSundaysInRange(startDate, endDate) {
+//       let count = 0;
+//       const current = moment(startDate);
+//       const end = moment(endDate);
+
+//       while (current <= end) {
+//         if (current.isoWeekday() === 7) { // Sunday
+//           count++;
+//         }
+//         current.add(1, 'day');
+//       }
+//       return count;
+//     }
+
+//     try {
+//       const pool = await getConnection();
+
+//       // 1. Fetch employee details (all employees if employeeId is -1)
+//       const employeeQuery = `
+//         SELECT
+//           e.userid,
+//           CONCAT(e.first_name, ' ', ISNULL(e.middle_name, ''), ' ', e.last_name) AS empname,
+//           e.gender_id,
+//           g.name AS gender_name
+//         FROM d00_emptable e
+//         LEFT JOIN d07_gender g ON e.gender_id = g.id
+//         WHERE (@employeeId = -1 OR e.userid = @employeeId)
+//         ORDER BY e.userid`;
+
+//       const employeeResult = await pool
+//         .request()
+//         .input("employeeId", sql.VarChar(50), employeeId)
+//         .query(employeeQuery);
+
+//       if (!employeeResult.recordset.length) {
+//         return res.status(404).json({
+//           isSuccess: false,
+//           message: "No employees found matching the criteria"
+//         });
+//       }
+
+//       // 2. Fetch salary information for all relevant employees
+//       const salaryQuery = `
+//         SELECT user_id, SalaryAmt, SalaryType
+//         FROM SalaryInfo
+//         WHERE (@employeeId = -1 OR user_id = @employeeId)`;
+
+//       const salaryResult = await pool
+//         .request()
+//         .input("employeeId", sql.VarChar(50), employeeId)
+//         .query(salaryQuery);
+
+//       const salaryMap = {};
+//       salaryResult.recordset.forEach(salary => {
+//         salaryMap[salary.user_id] = {
+//           salaryAmt: salary.SalaryAmt,
+//           salaryType: salary.SalaryType
+//         };
+//       });
+
+//       // 3. Fetch break duration configuration
+//       const breakQuery = `
+//         SELECT intervalMinutes
+//         FROM dbo.BreakMaster
+//         WHERE isActive = 1`;
+//       const breakResult = await pool.request().query(breakQuery);
+
+//       if (!breakResult.recordset.length) {
+//         return res.status(404).json({
+//           isSuccess: false,
+//           message: "No active break duration found in BreakMaster table"
+//         });
+//       }
+//       const standardBreakSeconds = breakResult.recordset[0].intervalMinutes * 60;
+
+//       // 4. Fetch attendance settings for all relevant employees
+//       const settingsQuery = `
+//         WITH LatestSettings AS (
+//           SELECT
+//             user_id,
+//             WorksHour,
+//             SundayType,
+//             ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY EffectiveDate DESC) as rn
+//           FROM AttendanceSetting
+//           WHERE @employeeId = -1 OR user_id = @employeeId
+//         )
+//         SELECT user_id, WorksHour, SundayType
+//         FROM LatestSettings
+//         WHERE rn = 1`;
+
+//       const settingsResult = await pool
+//         .request()
+//         .input("employeeId", sql.VarChar(50), employeeId)
+//         .query(settingsQuery);
+
+//       const workHoursMap = {};
+//       settingsResult.recordset.forEach(setting => {
+//         workHoursMap[setting.user_id] = {
+//           worksHour: setting.WorksHour,
+//           sundayType: setting.SundayType
+//         };
+//       });
+
+//       // 5. Fetch attendance data for the date range
+//       const attendanceQuery = `
+//         SELECT
+//           UserID,
+//           AttDateTime,
+//           verifyMode,
+//           io_mode
+//         FROM UserAttendance
+//         WHERE CAST(AttDateTime AS DATE) BETWEEN @dateFrom AND @dateTo
+//           AND (@employeeId = -1 OR UserID = @employeeId)
+//         ORDER BY UserID, AttDateTime`;
+
+//       const attendanceResult = await pool
+//         .request()
+//         .input("dateFrom", sql.Date, dateFrom)
+//         .input("dateTo", sql.Date, dateTo)
+//         .input("employeeId", sql.VarChar(50), employeeId)
+//         .query(attendanceQuery);
+
+//       // 6. Fetch holidays for the date range
+//       const holidayQuery = `
+//         SELECT Date, HolidayName, Description
+//         FROM dbo.holiDaySchedule
+//         WHERE Date BETWEEN @dateFrom AND @dateTo
+//           AND IsActive = 1`;
+
+//       const holidayResult = await pool
+//         .request()
+//         .input("dateFrom", sql.Date, dateFrom)
+//         .input("dateTo", sql.Date, dateTo)
+//         .query(holidayQuery);
+
+//       const holidayMap = {};
+//       holidayResult.recordset.forEach(h => {
+//         holidayMap[moment.utc(h.Date).format("YYYY-MM-DD")] = {
+//           name: h.HolidayName,
+//           description: h.Description,
+//         };
+//       });
+
+//       // Helper function to format duration
+//       function formatDurationWithSign(totalSeconds) {
+//         if (totalSeconds === 0) return "00:00:00";
+//         const sign = totalSeconds < 0 ? "-" : "";
+//         const absSeconds = Math.abs(totalSeconds);
+//         const hours = Math.floor(absSeconds / 3600);
+//         const minutes = Math.floor((absSeconds % 3600) / 60);
+//         const seconds = absSeconds % 60;
+//         return sign +
+//           hours.toString().padStart(2, "0") + ":" +
+//           minutes.toString().padStart(2, "0") + ":" +
+//           seconds.toString().padStart(2, "0");
+//       }
+
+//       function formatDuration(duration) {
+//         return [
+//           duration.hours().toString().padStart(2, "0"),
+//           duration.minutes().toString().padStart(2, "0"),
+//           duration.seconds().toString().padStart(2, "0")
+//         ].join(":");
+//       }
+
+//       // Process each employee's data
+//       const employeeReports = [];
+//       const attendanceByEmployee = {};
+
+//       // Group attendance data by employee
+//       attendanceResult.recordset.forEach(punch => {
+//         if (!attendanceByEmployee[punch.UserID]) {
+//           attendanceByEmployee[punch.UserID] = [];
+//         }
+//         attendanceByEmployee[punch.UserID].push(punch);
+//       });
+
+//       for (const employee of employeeResult.recordset) {
+//         const employeeAttendance = attendanceByEmployee[employee.userid] || [];
+//         const employeeOutDetails = [];
+//         let employeeTotalOutSeconds = 0;
+//         let employeeTotalWorkingSeconds = 0;
+//         let employeeTotalHoursESeconds = 0;
+//         const dailyPunches = {};
+
+//         // Get employee settings
+//         const employeeSettings = workHoursMap[employee.userid] || {
+//           worksHour: 9,
+//           sundayType: 'Standard'
+//         };
+//         const standardWorkingHours = employeeSettings.worksHour;
+//         const sundayType = employeeSettings.sundayType;
+//         const standardWorkingSeconds = standardWorkingHours * 3600;
+//         const sundayWorkingSeconds = sundayType === 'Proportionate'
+//           ? Math.round(standardWorkingSeconds / 6)
+//           : standardWorkingSeconds;
+
+//         // Get employee salary
+//         const employeeSalary = salaryMap[employee.userid] || {
+//           salaryAmt: 0,
+//           salaryType: 'Monthly'
+//         };
+//         const monthlySalary = employeeSalary.salaryAmt;
+//         const salaryType = employeeSalary.salaryType;
+
+//         // Calculate salary rates
+//         let dailySalary = 0;
+//         let minuteSalary = 0;
+//         let hourlySalary = 0;
+
+//         if (salaryType === 'Monthly') {
+//           const currentMonth = moment(dateFrom).month();
+//           const currentYear = moment(dateFrom).year();
+//           const totalDaysInMonth = moment(`${currentYear}-${currentMonth + 1}`, "YYYY-MM").daysInMonth();
+//           dailySalary = monthlySalary / totalDaysInMonth;
+//         }
+//         else if (salaryType === 'Daily') {
+//           dailySalary = monthlySalary;
+//         }
+//         else if (salaryType === 'Hourly') {
+//           dailySalary = monthlySalary * standardWorkingHours;
+//         }
+//         else {
+//           dailySalary = monthlySalary * standardWorkingHours;
+//         }
+
+//         minuteSalary = dailySalary / (standardWorkingHours * 60);
+//         hourlySalary = dailySalary / standardWorkingHours;
+
+//         // Group punches by date and process each day
+//         employeeAttendance.forEach(punch => {
+//           const dateKey = moment.utc(punch.AttDateTime).format("YYYY-MM-DD");
+//           if (!dailyPunches[dateKey]) {
+//             dailyPunches[dateKey] = {
+//               firstIn: null,
+//               lastOut: null,
+//               punches: [],
+//               outSeconds: 0,
+//               hasAttendance: false,
+//               isHoliday: false,
+//               holidayName: null,
+//               holidayDescription: null,
+//               isSunday: false,
+//               isEarnedSunday: false,
+//               requiredWorkingSeconds: standardWorkingSeconds,
+//               sundayValue: 0,
+//               sundayValueFormatted: "00:00:00",
+//               workingSeconds: 0,
+//               workingHours: null,
+//               workingHoursFormatted: "00:00:00",
+//               hoursESeconds: 0,
+//               hoursE: "00:00:00",
+//               balanceSeconds: 0,
+//               balanceHours: "00:00:00",
+//               processedForOutDetails: false,
+//               hasOutTime: false
+//             };
+//           }
+//           dailyPunches[dateKey].punches.push(punch);
+//           dailyPunches[dateKey].hasAttendance = true;
+//         });
+
+//         // Include all dates in the range, even those without punches
+//         const allDatesInRange = [];
+//         let currentDate = moment.utc(dateFrom);
+//         const endDate = moment.utc(dateTo);
+
+//         while (currentDate <= endDate) {
+//           const dateKey = currentDate.format("YYYY-MM-DD");
+//           allDatesInRange.push(dateKey);
+
+//           if (!dailyPunches[dateKey]) {
+//             dailyPunches[dateKey] = {
+//               firstIn: null,
+//               lastOut: null,
+//               punches: [],
+//               outSeconds: 0,
+//               hasAttendance: false,
+//               isHoliday: false,
+//               holidayName: null,
+//               holidayDescription: null,
+//               isSunday: false,
+//               isEarnedSunday: false,
+//               requiredWorkingSeconds: standardWorkingSeconds,
+//               sundayValue: 0,
+//               sundayValueFormatted: "00:00:00",
+//               workingSeconds: 0,
+//               workingHours: null,
+//               workingHoursFormatted: "00:00:00",
+//               hoursESeconds: 0,
+//               hoursE: "00:00:00",
+//               balanceSeconds: 0,
+//               balanceHours: "00:00:00",
+//               processedForOutDetails: false,
+//               hasOutTime: false
+//             };
+//           }
+
+//           // Mark holidays
+//           if (holidayMap[dateKey]) {
+//             dailyPunches[dateKey].isHoliday = true;
+//             dailyPunches[dateKey].holidayName = holidayMap[dateKey].name;
+//             dailyPunches[dateKey].holidayDescription = holidayMap[dateKey].description;
+//           }
+
+//           // Mark Sundays and set required working hours
+//           if (currentDate.isoWeekday() === 7) {
+//             dailyPunches[dateKey].isSunday = true;
+//             dailyPunches[dateKey].requiredWorkingSeconds = sundayWorkingSeconds;
+//           }
+
+//           currentDate = currentDate.add(1, 'days');
+//         }
+
+//         const sortedDates = Object.keys(dailyPunches).sort((a, b) => new Date(a) - new Date(b));
+
+//         // Calculate daily working hours (first in to last out)
+//         sortedDates.forEach(dateKey => {
+//           const daily = dailyPunches[dateKey];
+//           const punches = daily.punches;
+
+//           if (punches.length > 0) {
+//             const firstIn = punches.find(p => p.io_mode === '0');
+//             const lastOut = punches.slice().reverse().find(p => p.io_mode === '1');
+
+//             if (firstIn) {
+//               daily.firstIn = firstIn;
+//               if (lastOut) {
+//                 const start = moment.utc(firstIn.AttDateTime);
+//                 const end = moment.utc(lastOut.AttDateTime);
+//                 const duration = moment.duration(end.diff(start));
+
+//                 daily.workingSeconds = duration.asSeconds();
+//                 daily.workingHours = duration;
+//                 daily.workingHoursFormatted = formatDuration(duration);
+//                 daily.lastOut = lastOut;
+//               } else {
+//                 // Only first in exists
+//                 daily.workingSeconds = 0;
+//                 daily.workingHours = moment.duration(0);
+//                 daily.workingHoursFormatted = "00:00:00";
+//               }
+//             }
+//           }
+//         });
+
+//         // Calculate daily out seconds (sum of all out durations)
+//         sortedDates.forEach(dateKey => {
+//           const daily = dailyPunches[dateKey];
+//           const punches = daily.punches;
+//           let dateOutSeconds = 0;
+//           let hasOutTime = false;
+
+//           for (let i = 0; i < punches.length - 1; i++) {
+//             const current = punches[i];
+//             const next = punches[i + 1];
+//             if (current.io_mode === '1' && next.io_mode === '0') {
+//               const outTime = moment.utc(current.AttDateTime);
+//               const inTime = moment.utc(next.AttDateTime);
+//               const duration = moment.duration(inTime.diff(outTime));
+//               dateOutSeconds += duration.asSeconds();
+//               hasOutTime = true;
+//             }
+//           }
+
+//           daily.outSeconds = dateOutSeconds;
+//           daily.outDuration = formatDurationWithSign(dateOutSeconds);
+//           daily.hasOutTime = hasOutTime;
+//           employeeTotalOutSeconds += dateOutSeconds;
+//         });
+
+//         // Calculate total working seconds
+//         employeeTotalWorkingSeconds = 0;
+//         sortedDates.forEach(dateKey => {
+//           if (dailyPunches[dateKey].workingSeconds) {
+//             employeeTotalWorkingSeconds += dailyPunches[dateKey].workingSeconds;
+//           }
+//         });
+
+//         // Count present, absent and earned Sundays
+//         let presentDays = 0;
+//         let absentDays = 0;
+//         let earnedSundayCount = 0;
+//         let totalSundays = 0;
+//         const weekWorkMap = {};
+//         const weekBalanceMap = {};
+
+//         sortedDates.forEach(dateKey => {
+//           const weekday = moment.utc(dateKey).isoWeekday();
+//           const daily = dailyPunches[dateKey];
+//           const hasAttendance = daily.hasAttendance;
+//           const isHoliday = daily.isHoliday;
+//           const isSunday = daily.isSunday;
+
+//           if (isSunday) {
+//             totalSundays++;
+//           }
+
+//           if (hasAttendance) {
+//             presentDays++;
+
+//             if (weekday >= 1 && weekday <= 6 && daily.workingSeconds >= standardWorkingSeconds) {
+//               const weekNum = moment.utc(dateKey).isoWeek();
+//               if (!weekWorkMap[weekNum]) weekWorkMap[weekNum] = [];
+//               weekWorkMap[weekNum].push(dateKey);
+//             }
+//           } else if (!isHoliday && !isSunday) {
+//             absentDays++;
+//           }
+//         });
+
+//         // Mark earned Sundays
+//         Object.entries(weekWorkMap).forEach(([weekNum, days]) => {
+//           if (days.length >= 6) {
+//             earnedSundayCount++;
+//             const sundayKey = sortedDates.find(dateKey =>
+//               moment.utc(dateKey).isoWeek() === parseInt(weekNum) &&
+//               moment.utc(dateKey).isoWeekday() === 7
+//             );
+//             if (sundayKey && dailyPunches[sundayKey]) {
+//               dailyPunches[sundayKey].isEarnedSunday = true;
+//               dailyPunches[sundayKey].requiredWorkingSeconds = standardWorkingSeconds;
+//             }
+//           }
+//         });
+
+//         // Calculate HoursE and Balance Hours with carry forward
+//         let carryForwardSeconds = 0;
+//         sortedDates.forEach(dateKey => {
+//           const weekday = moment.utc(dateKey).isoWeekday();
+//           const weekNum = moment.utc(dateKey).isoWeek();
+//           const daily = dailyPunches[dateKey];
+//           const requiredSeconds = daily.requiredWorkingSeconds;
+
+//           let hoursESeconds = 0;
+
+//           if (daily.hasOutTime) {
+//             hoursESeconds = standardBreakSeconds - daily.outSeconds;
+//           }
+
+//           hoursESeconds += carryForwardSeconds;
+//           carryForwardSeconds = 0;
+
+//           daily.hoursESeconds = hoursESeconds;
+//           daily.hoursE = formatDurationWithSign(hoursESeconds);
+//           employeeTotalHoursESeconds += hoursESeconds;
+
+//           let balanceSeconds = 0;
+//           const workingSeconds = daily.workingSeconds || 0;
+
+//           if (daily.isHoliday && daily.hasAttendance) {
+//             balanceSeconds = requiredSeconds - Math.abs(hoursESeconds);
+//           } else if (daily.isEarnedSunday) {
+//             balanceSeconds = requiredSeconds - Math.abs(hoursESeconds);
+//           } else {
+//             balanceSeconds = workingSeconds - Math.abs(hoursESeconds);
+//           }
+
+//           daily.balanceSeconds = balanceSeconds;
+//           daily.balanceHours = formatDurationWithSign(balanceSeconds);
+
+//           if (weekday >= 1 && weekday <= 6) {
+//             if (!weekBalanceMap[weekNum]) {
+//               weekBalanceMap[weekNum] = 0;
+//             }
+//             weekBalanceMap[weekNum] += balanceSeconds;
+//           }
+//         });
+
+//         // Calculate sundayValue (1/6 of weekday balances)
+//         sortedDates.forEach(dateKey => {
+//           const daily = dailyPunches[dateKey];
+//           if (daily.isSunday) {
+//             const weekNum = moment.utc(dateKey).isoWeek();
+//             const weekdayBalance = weekBalanceMap[weekNum] || 0;
+//             daily.sundayValue = weekdayBalance / 6;
+//             daily.sundayValueFormatted = formatDurationWithSign(daily.sundayValue);
+//           }
+//         });
+
+//         // Prepare outDetails - include all entries with punches
+//         for (let i = 0; i < employeeAttendance.length - 1; i++) {
+//           const current = employeeAttendance[i];
+//           const next = employeeAttendance[i + 1];
+
+//           if (current.io_mode === '1' && next.io_mode === '0') {
+//             const outTime = moment.utc(current.AttDateTime);
+//             const inTime = moment.utc(next.AttDateTime);
+//             const duration = moment.duration(inTime.diff(outTime));
+//             const dateKey = outTime.format("YYYY-MM-DD");
+//             const daily = dailyPunches[dateKey];
+
+//             employeeOutDetails.push({
+//               "S.No.": employeeOutDetails.length + 1,
+//               "Employee": employee.empname,
+//               "EmpCode": employee.userid,
+//               "Date": outTime.format("DD-MMM-YYYY"),
+//               "FirstIn": daily.firstIn ? moment.utc(daily.firstIn.AttDateTime).format("HH:mm:ss") : "N/A",
+//               "LastOut": daily.lastOut ? moment.utc(daily.lastOut.AttDateTime).format("HH:mm:ss") : "N/A",
+//               "WorkingHours": daily.workingHoursFormatted,
+//               "HoursE": daily.hoursE,
+//               "BalanceHours": daily.balanceHours,
+//               "SundayValue": daily.sundayValueFormatted,
+//               "Out Time": outTime.format("HH:mm:ss"),
+//               "In Time": inTime.format("HH:mm:ss"),
+//               "Out Duration": formatDuration(duration),
+//               "Total Out Duration": daily.outDuration,
+//               "Attendance From": current.verifyMode,
+//               "IsHoliday": daily.isHoliday,
+//               "HolidayName": daily.holidayName,
+//               "IsSunday": daily.isSunday,
+//               "IsEarnedSunday": daily.isEarnedSunday,
+//               "StandardBreakDuration": standardBreakSeconds / 60 + " minutes",
+//               "StandardWorkingHours": standardWorkingHours + " hours",
+//               "SundayType": sundayType,
+//               "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours",
+//               "MinuteSalary": minuteSalary.toFixed(2),
+//               "HourlySalary": hourlySalary.toFixed(2),
+//               "DailySalary": dailySalary.toFixed(2)
+//             });
+//             daily.processedForOutDetails = true;
+//           }
+//         }
+
+//         // Include all days with punches, even those without out-in pairs
+//         sortedDates.forEach(dateKey => {
+//           const daily = dailyPunches[dateKey];
+//           if (daily.hasAttendance && !daily.processedForOutDetails) {
+//             const firstIn = daily.punches.find(p => p.io_mode === '0');
+//             employeeOutDetails.push({
+//               "S.No.": employeeOutDetails.length + 1,
+//               "Employee": employee.empname,
+//               "EmpCode": employee.userid,
+//               "Date": moment.utc(dateKey).format("DD-MMM-YYYY"),
+//               "FirstIn": firstIn ? moment.utc(firstIn.AttDateTime).format("HH:mm:ss") : "N/A",
+//               "LastOut": daily.lastOut ? moment.utc(daily.lastOut.AttDateTime).format("HH:mm:ss") : "N/A",
+//               "WorkingHours": daily.workingHoursFormatted,
+//               "HoursE": daily.hoursE,
+//               "BalanceHours": daily.balanceHours,
+//               "SundayValue": daily.sundayValueFormatted,
+//               "Out Time": "N/A",
+//               "In Time": "N/A",
+//               "Out Duration": "00:00:00",
+//               "Total Out Duration": daily.outDuration,
+//               "Attendance From": firstIn ? firstIn.verifyMode : "N/A",
+//               "IsHoliday": daily.isHoliday,
+//               "HolidayName": daily.holidayName,
+//               "IsSunday": daily.isSunday,
+//               "IsEarnedSunday": daily.isEarnedSunday,
+//               "StandardBreakDuration": standardBreakSeconds / 60 + " minutes",
+//               "StandardWorkingHours": standardWorkingHours + " hours",
+//               "SundayType": sundayType,
+//               "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours",
+//               "MinuteSalary": minuteSalary.toFixed(2),
+//               "HourlySalary": hourlySalary.toFixed(2),
+//               "DailySalary": dailySalary.toFixed(2)
+//             });
+//             daily.processedForOutDetails = true;
+//           }
+//         });
+
+//         // Sort outDetails by date
+//         employeeOutDetails.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+
+//         // Calculate totals from dailyPunches
+//         let totalBalanceSeconds = 0;
+//         let totalSundayValue = 0;
+//         let totalHoursESeconds = 0;
+//         let totalWorkingSeconds = 0;
+//         let totalOutSeconds = 0;
+//         let presentDaysCount = 0;
+
+//         sortedDates.forEach(dateKey => {
+//           const daily = dailyPunches[dateKey];
+//           if (daily.hasAttendance) {
+//             totalBalanceSeconds += daily.balanceSeconds || 0;
+//             totalHoursESeconds += daily.hoursESeconds || 0;
+//             totalWorkingSeconds += daily.workingSeconds || 0;
+//             totalOutSeconds += daily.outSeconds || 0;
+//             presentDaysCount++;
+
+//             if (daily.isSunday) {
+//               totalSundayValue += daily.sundayValue || 0;
+//             }
+//           }
+//         });
+
+//         // Format totals
+//         const totalOutDuration = formatDurationWithSign(totalOutSeconds);
+//         const totalWorkingDuration = formatDurationWithSign(totalWorkingSeconds);
+//         const totalOutDays = (totalOutSeconds / (standardWorkingHours * 3600)).toFixed(2);
+//         const totalHoursE = formatDurationWithSign(totalHoursESeconds);
+//         const totalBalanceHours = formatDurationWithSign(totalBalanceSeconds);
+//         const totalSundayValueFormatted = formatDurationWithSign(totalSundayValue);
+
+//         const perdaywork = presentDaysCount > 0
+//           ? (totalBalanceSeconds / (standardWorkingHours * 3600)).toFixed(2)
+//           : "0.00";
+
+//         const totalDaysInRange = moment(dateTo).diff(moment(dateFrom), 'days') + 1;
+//         const workingDaysCount = totalDaysInRange - totalSundays - holidayResult.recordset.length;
+
+//         const workingDaysInSeconds = workingDaysCount * standardWorkingHours * 3600;
+//         const workingDaysFormatted = formatDurationWithSign(workingDaysInSeconds);
+
+//         let calculatedEarnedSundays = 0;
+//         if (workingDaysCount > 0) {
+//           const totalSundaysInRange = countSundaysInRange(dateFrom, dateTo);
+//           console.log("totalSundaysInRange",totalSundaysInRange)
+//           console.log("workingDaysCount",workingDaysCount)
+
+//           calculatedEarnedSundays = (totalSundaysInRange / workingDaysCount) * parseFloat(perdaywork);
+//         }
+
+//         employeeReports.push({
+//           employeeId: employee.userid,
+//           empname: employee.empname,
+//           gender: employee.gender_name,
+//           outDetails: employeeOutDetails,
+//           totals: {
+//             perdaywork: perdaywork,
+//             outDays: totalOutDays,
+//             outHour: totalOutDuration,
+//             workingHours: totalWorkingDuration,
+//             hoursE: totalHoursE,
+//             balanceHours: totalBalanceHours,
+//             sundayValue: totalSundayValueFormatted,
+//             presentDays: presentDaysCount,
+//             absentDays: absentDays,
+//             totalDays: totalDaysInRange,
+//             workingDays: workingDaysFormatted,
+//             workingDaysCount: workingDaysCount,
+//             sundays: totalSundays,
+//             standardWorkingHours: standardWorkingHours + " hours",
+//             holidayHour: standardWorkingHours + " hours",
+//             earnedSundays: calculatedEarnedSundays.toFixed(2),
+//             holidayDays: holidayResult.recordset.length,
+//             standardBreakDuration: standardBreakSeconds / 60 + " minutes",
+//             sundayType: sundayType,
+//             sundayWorkingHours: sundayWorkingSeconds / 3600 + " hours",
+//             minuteSalary: minuteSalary.toFixed(2),
+//             hourlySalary: hourlySalary.toFixed(2),
+//             dailySalary: dailySalary.toFixed(2),
+//             salaryType: salaryType,
+//             totalDaysInMonth: salaryType === 'Monthly' ?
+//               moment(`${moment(dateFrom).year()}-${moment(dateFrom).month() + 1}`, "YYYY-MM").daysInMonth() :
+//               null
+//           }
+//         });
+//       }
+
+//       const response = {
+//         isSuccess: true,
+//         message: "Break attendance report generated successfully",
+//         data: employeeReports,
+//         holidays: holidayResult.recordset,
+//         dateRange: {
+//           from: moment.utc(dateFrom).format("DD-MMM-YYYY"),
+//           to: moment.utc(dateTo).format("DD-MMM-YYYY"),
+//           totalDays: moment(dateTo).diff(moment(dateFrom), 'days') + 1
+//         },
+//         standardBreakDuration: standardBreakSeconds / 60 + " minutes"
+//       };
+
+//       res.json(response);
+
+//     } catch (err) {
+//       console.error("Error in BreakAttendance:", err);
+//       res.status(500).json({
+//         isSuccess: false,
+//         message: `Server error: ${err.message}`,
+//       });
+//     }
+// };
+
+// 45 break api newApi 09/06/2025
 const BreakAttendance = async (req, res) => {
-    const { employeeId, dateFrom, dateTo } = req.body;
+  const { employeeId, dateFrom, dateTo } = req.body;
 
-    // Validate date range
-    if (new Date(dateFrom) > new Date(dateTo)) {
-      return res.status(400).json({
-        isSuccess: false,
-        message: "Invalid date range - dateFrom must be before dateTo"
-      });
-    }
+  if (new Date(dateFrom) > new Date(dateTo)) {
+    return res.status(400).json({
+      isSuccess: false,
+      message: "Invalid date range - dateFrom must be before dateTo",
+    });
+  }
 
-    // Helper function to count Sundays in date range
-    function countSundaysInRange(startDate, endDate) {
-      let count = 0;
-      const current = moment(startDate);
-      const end = moment(endDate);
-      
-      while (current <= end) {
-        if (current.isoWeekday() === 7) { // Sunday
-          count++;
-        }
-        current.add(1, 'day');
+  function countSundaysInMonth(anyDateInMonth) {
+    const startOfMonth = moment(anyDateInMonth).startOf("month");
+    const endOfMonth = moment(anyDateInMonth).endOf("month");
+    let count = 0;
+    const current = startOfMonth.clone();
+
+    while (current.isSameOrBefore(endOfMonth, "day")) {
+      if (current.isoWeekday() === 7) {
+        // Sunday
+        count++;
       }
-      return count;
+      current.add(1, "day");
     }
 
-    try {
-      const pool = await getConnection();
+    return count;
+  }
 
-      // 1. Fetch employee details (all employees if employeeId is -1)
-      const employeeQuery = `
+  try {
+    const pool = await getConnection();
+
+    // Fetch approved grace minutes for employees
+    const graceMinutesQuery = `
+        SELECT 
+          empid,
+          no_of_minutes as graceMinutes
+        FROM PunchCorrections
+        WHERE status = 'Approved'
+      `;
+
+    const graceMinutesRequest = pool
+      .request()
+      .input("dateFrom", sql.Date, dateFrom)
+      .input("dateTo", sql.Date, dateTo);
+
+    if (employeeId !== -1) {
+      graceMinutesRequest.input("employeeId", sql.VarChar(50), employeeId);
+    }
+
+    const graceMinutesResult = await graceMinutesRequest.query(
+      graceMinutesQuery
+    );
+
+    // Create a map of employee grace minutes (array since there might be multiple entries)
+    const graceMinutesMap = {};
+    graceMinutesResult.recordset.forEach((row) => {
+      if (!graceMinutesMap[row.empid]) {
+        graceMinutesMap[row.empid] = [];
+      }
+      graceMinutesMap[row.empid].push(row.graceMinutes);
+    });
+
+    // Fetch employee details
+    const employeeQuery = `
         SELECT 
           e.userid, 
           CONCAT(e.first_name, ' ', ISNULL(e.middle_name, ''), ' ', e.last_name) AS empname,
@@ -1587,85 +2311,70 @@ const BreakAttendance = async (req, res) => {
           g.name AS gender_name
         FROM d00_emptable e
         LEFT JOIN d07_gender g ON e.gender_id = g.id
-        WHERE (@employeeId = -1 OR e.userid = @employeeId)
-        ORDER BY e.userid`;
+        WHERE (${employeeId} = -1 OR e.userid = @employeeId)`;
 
-      const employeeResult = await pool
-        .request()
-        .input("employeeId", sql.VarChar(50), employeeId)
-        .query(employeeQuery);
+    const employeeResult = await pool
+      .request()
+      .input("employeeId", sql.VarChar(50), employeeId)
+      .query(employeeQuery);
 
-      if (!employeeResult.recordset.length) {
-        return res.status(404).json({ 
-          isSuccess: false, 
-          message: "No employees found matching the criteria" 
+    if (!employeeResult.recordset.length) {
+      return res
+        .status(404)
+        .json({
+          isSuccess: false,
+          message: "No employees found matching the criteria",
         });
-      }
+    }
 
-      // 2. Fetch salary information for all relevant employees
-      const salaryQuery = `
+    // Fetch salary information
+    const salaryQuery = `
         SELECT user_id, SalaryAmt, SalaryType
         FROM SalaryInfo
-        WHERE (@employeeId = -1 OR user_id = @employeeId)`;
+      `;
 
-      const salaryResult = await pool
-        .request()
-        .input("employeeId", sql.VarChar(50), employeeId)
-        .query(salaryQuery);
+    const salaryRequest = pool.request().input("dateTo", sql.Date, dateTo);
+    if (employeeId !== -1) {
+      salaryRequest.input("employeeId", sql.VarChar(50), employeeId);
+    }
+    const salaryResult = await salaryRequest.query(salaryQuery);
 
-      const salaryMap = {};
-      salaryResult.recordset.forEach(salary => {
-        salaryMap[salary.user_id] = {
-          salaryAmt: salary.SalaryAmt,
-          salaryType: salary.SalaryType
-        };
-      });
+    const salaryMap = {};
+    salaryResult.recordset.forEach((salary) => {
+      salaryMap[salary.user_id] = {
+        salaryAmt: salary.SalaryAmt,
+        salaryType: salary.SalaryType,
+      };
+    });
 
-      // 3. Fetch break duration configuration
-      const breakQuery = `
-        SELECT intervalMinutes 
-        FROM dbo.BreakMaster 
-        WHERE isActive = 1`;
-      const breakResult = await pool.request().query(breakQuery);
-      
-      if (!breakResult.recordset.length) {
-        return res.status(404).json({ 
-          isSuccess: false, 
-          message: "No active break duration found in BreakMaster table" 
-        });
-      }
-      const standardBreakSeconds = breakResult.recordset[0].intervalMinutes * 60;
-
-      // 4. Fetch attendance settings for all relevant employees
-      const settingsQuery = `
+    // Fetch attendance settings (now including GraceMinute)
+    const settingsQuery = `
         WITH LatestSettings AS (
           SELECT 
             user_id, 
             WorksHour,
+            GraceMinute,
             SundayType,
             ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY EffectiveDate DESC) as rn
           FROM AttendanceSetting
-          WHERE @employeeId = -1 OR user_id = @employeeId
         )
-        SELECT user_id, WorksHour, SundayType
+        SELECT user_id, WorksHour, SundayType, GraceMinute
         FROM LatestSettings
-        WHERE rn = 1`;
-      
-      const settingsResult = await pool
-        .request()
-        .input("employeeId", sql.VarChar(50), employeeId)
-        .query(settingsQuery);
-      
-      const workHoursMap = {};
-      settingsResult.recordset.forEach(setting => {
-        workHoursMap[setting.user_id] = {
-          worksHour: setting.WorksHour,
-          sundayType: setting.SundayType
-        };
-      });
+        WHERE rn = 1
+      `;
+    const settingsResult = await pool.request().query(settingsQuery);
 
-      // 5. Fetch attendance data for the date range
-      const attendanceQuery = `
+    const workHoursMap = {};
+    settingsResult.recordset.forEach((setting) => {
+      workHoursMap[setting.user_id] = {
+        worksHour: setting.WorksHour,
+        sundayType: setting.SundayType,
+        graceMinute: setting.GraceMinute
+      };
+    });
+
+    // Fetch attendance data
+    let attendanceQuery = `
         SELECT 
           UserID,
           AttDateTime,
@@ -1673,574 +2382,746 @@ const BreakAttendance = async (req, res) => {
           io_mode
         FROM UserAttendance
         WHERE CAST(AttDateTime AS DATE) BETWEEN @dateFrom AND @dateTo
-          AND (@employeeId = -1 OR UserID = @employeeId)
-        ORDER BY UserID, AttDateTime`;
+      `;
+    if (employeeId !== -1) {
+      attendanceQuery += ` AND UserID = @employeeId`;
+    }
+    attendanceQuery += ` ORDER BY UserID, AttDateTime`;
 
-      const attendanceResult = await pool
-        .request()
-        .input("dateFrom", sql.Date, dateFrom)
-        .input("dateTo", sql.Date, dateTo)
-        .input("employeeId", sql.VarChar(50), employeeId)
-        .query(attendanceQuery);
+    const attendanceRequest = pool
+      .request()
+      .input("dateFrom", sql.Date, dateFrom)
+      .input("dateTo", sql.Date, dateTo);
+    if (employeeId !== -1) {
+      attendanceRequest.input("employeeId", sql.VarChar(50), employeeId);
+    }
+    const attendanceResult = await attendanceRequest.query(attendanceQuery);
 
-      // 6. Fetch holidays for the date range
-      const holidayQuery = `
+    // Fetch holidays
+    const holidayQuery = `
         SELECT Date, HolidayName, Description
         FROM dbo.holiDaySchedule
         WHERE Date BETWEEN @dateFrom AND @dateTo
-          AND IsActive = 1`;
-      
-      const holidayResult = await pool
-        .request()
-        .input("dateFrom", sql.Date, dateFrom)
-        .input("dateTo", sql.Date, dateTo)
-        .query(holidayQuery);
+          AND IsActive = 1
+      `;
+    const holidayResult = await pool
+      .request()
+      .input("dateFrom", sql.Date, dateFrom)
+      .input("dateTo", sql.Date, dateTo)
+      .query(holidayQuery);
 
-      const holidayMap = {};
-      holidayResult.recordset.forEach(h => {
-        holidayMap[moment.utc(h.Date).format("YYYY-MM-DD")] = {
-          name: h.HolidayName,
-          description: h.Description,
-        };
-      });
+    const holidayMap = {};
+    holidayResult.recordset.forEach((h) => {
+      holidayMap[moment.utc(h.Date).format("YYYY-MM-DD")] = {
+        name: h.HolidayName,
+        description: h.Description,
+      };
+    });
 
-      // Helper function to format duration
-      function formatDurationWithSign(totalSeconds) {
-        if (totalSeconds === 0) return "00:00:00";
-        const sign = totalSeconds < 0 ? "-" : "";
-        const absSeconds = Math.abs(totalSeconds);
-        const hours = Math.floor(absSeconds / 3600);
-        const minutes = Math.floor((absSeconds % 3600) / 60);
-        const seconds = absSeconds % 60;
-        return sign +
-          hours.toString().padStart(2, "0") + ":" +
-          minutes.toString().padStart(2, "0") + ":" +
-          seconds.toString().padStart(2, "0");
+    // Helper function to format duration
+    function formatDurationWithSign(totalSeconds) {
+      if (totalSeconds === 0) return "00:00:00";
+      const sign = totalSeconds < 0 ? "-" : "";
+      const absSeconds = Math.abs(totalSeconds);
+      const hours = Math.floor(absSeconds / 3600);
+      const minutes = Math.floor((absSeconds % 3600) / 60);
+      const seconds = absSeconds % 60;
+      return (
+        sign +
+        hours.toString().padStart(2, "0") +
+        ":" +
+        minutes.toString().padStart(2, "0") +
+        ":" +
+        seconds.toString().padStart(2, "0")
+      );
+    }
+
+    function formatDuration(duration) {
+      return [
+        duration.hours().toString().padStart(2, "0"),
+        duration.minutes().toString().padStart(2, "0"),
+        duration.seconds().toString().padStart(2, "0"),
+      ].join(":");
+    }
+
+    // Process each employee
+    const employeeReports = [];
+    const attendanceByEmployee = {};
+    attendanceResult.recordset.forEach((punch) => {
+      if (!attendanceByEmployee[punch.UserID]) {
+        attendanceByEmployee[punch.UserID] = [];
       }
+      attendanceByEmployee[punch.UserID].push(punch);
+    });
 
-      function formatDuration(duration) {
-        return [
-          duration.hours().toString().padStart(2, "0"),
-          duration.minutes().toString().padStart(2, "0"),
-          duration.seconds().toString().padStart(2, "0")
-        ].join(":");
-      }
+    for (const employee of employeeResult.recordset) {
+      // Get employee's grace minutes (array of all approved grace minutes)
+      const employeeGraceMinutes = graceMinutesMap[employee.userid] || [];
 
-      // Process each employee's data
-      const employeeReports = [];
-      const attendanceByEmployee = {};
-      
-      // Group attendance data by employee
-      attendanceResult.recordset.forEach(punch => {
-        if (!attendanceByEmployee[punch.UserID]) {
-          attendanceByEmployee[punch.UserID] = [];
-        }
-        attendanceByEmployee[punch.UserID].push(punch);
-      });
+      const employeeOutDetails = [];
+      const dailyPunches = {};
 
-      for (const employee of employeeResult.recordset) {
-        const employeeAttendance = attendanceByEmployee[employee.userid] || [];
-        const employeeOutDetails = [];
-        let employeeTotalOutSeconds = 0;
-        let employeeTotalWorkingSeconds = 0;
-        let employeeTotalHoursESeconds = 0;
-        const dailyPunches = {};
-
-        // Get employee settings
-        const employeeSettings = workHoursMap[employee.userid] || { 
-          worksHour: 9, 
-          sundayType: 'Standard' 
-        };
-        const standardWorkingHours = employeeSettings.worksHour;
-        const sundayType = employeeSettings.sundayType;
-        const standardWorkingSeconds = standardWorkingHours * 3600;
-        const sundayWorkingSeconds = sundayType === 'Proportionate' 
-          ? Math.round(standardWorkingSeconds / 6) 
+      // Get employee settings
+      const employeeSettings = workHoursMap[employee.userid] || {
+        worksHour: 9,
+        sundayType: "Standard",
+        graceMinute: 45 // Default grace minutes if not found
+      };
+      const standardWorkingHours = employeeSettings.worksHour;
+      const sundayType = employeeSettings.sundayType;
+      const standardWorkingSeconds = standardWorkingHours * 3600;
+      const sundayWorkingSeconds =
+        sundayType === "Proportionate"
+          ? Math.round(standardWorkingSeconds / 6)
           : standardWorkingSeconds;
+      
+      // Use graceMinute for break duration (convert minutes to seconds)
+      const standardBreakSeconds = (employeeSettings.graceMinute || 45) * 60;
 
-        // Get employee salary
-        const employeeSalary = salaryMap[employee.userid] || { 
-          salaryAmt: 0, 
-          salaryType: 'Monthly' 
-        };
-        const monthlySalary = employeeSalary.salaryAmt;
-        const salaryType = employeeSalary.salaryType;
-        
-        // Calculate salary rates
-        let dailySalary = 0;
-        let minuteSalary = 0;
-        let hourlySalary = 0;
+      // Get employee salary
+      const employeeSalary = salaryMap[employee.userid] || {
+        salaryAmt: 0,
+        salaryType: "Monthly",
+      };
+      const monthlySalary = employeeSalary.salaryAmt;
+      const salaryType = employeeSalary.salaryType;
 
-        if (salaryType === 'Monthly') {
-          const currentMonth = moment(dateFrom).month();
-          const currentYear = moment(dateFrom).year();
-          const totalDaysInMonth = moment(`${currentYear}-${currentMonth + 1}`, "YYYY-MM").daysInMonth();
-          dailySalary = monthlySalary / totalDaysInMonth;
-        } 
-        else if (salaryType === 'Daily') {
-          dailySalary = monthlySalary;
-        } 
-        else if (salaryType === 'Hourly') {
-          dailySalary = monthlySalary * standardWorkingHours;
-        }
-        else {
-          dailySalary = monthlySalary * standardWorkingHours;
-        }
+      // START: SALARY CALCULATION LOGIC FROM FIRST FUNCTION
+      let dailySalary = 0;
+      let minuteSalary = 0;
+      let hourlySalary = 0;
 
-        minuteSalary = dailySalary / (standardWorkingHours * 60);
+      if (salaryType === "Monthly") {
+        // Get total days in the current month
+        const currentMonth = moment(dateFrom).month();
+        const currentYear = moment(dateFrom).year();
+        const totalDaysInMonth = moment(
+          `${currentYear}-${currentMonth + 1}`,
+          "YYYY-MM"
+        ).daysInMonth();
+        dailySalary = monthlySalary / totalDaysInMonth;
+      } else if (salaryType === "Daily") {
+        dailySalary = monthlySalary;
+      } else if (salaryType === "Hourly") {
+        dailySalary = monthlySalary * standardWorkingHours;
+      } else {
+        // For other types, default to hourly calculation
+        dailySalary = monthlySalary * standardWorkingHours;
+      }
+
+      // Then calculate minute and hourly rates from daily salary
+      if (dailySalary > 0 && standardWorkingHours > 0) {
         hourlySalary = dailySalary / standardWorkingHours;
+        minuteSalary = hourlySalary / 60;
+      }
+      // END: SALARY CALCULATION LOGIC FROM FIRST FUNCTION
 
-        // Group punches by date and process each day
-        employeeAttendance.forEach(punch => {
-          const dateKey = moment.utc(punch.AttDateTime).format("YYYY-MM-DD");
-          if (!dailyPunches[dateKey]) {
-            dailyPunches[dateKey] = {
-              firstIn: null,
-              lastOut: null,
-              punches: [],
-              outSeconds: 0,
-              hasAttendance: false,
-              isHoliday: false,
-              holidayName: null,
-              holidayDescription: null,
-              isSunday: false,
-              isEarnedSunday: false,
-              requiredWorkingSeconds: standardWorkingSeconds,
-              sundayValue: 0,
-              sundayValueFormatted: "00:00:00",
-              workingSeconds: 0,
-              workingHours: null,
-              workingHoursFormatted: "00:00:00",
-              hoursESeconds: 0,
-              hoursE: "00:00:00",
-              balanceSeconds: 0,
-              balanceHours: "00:00:00",
-              processedForOutDetails: false,
-              hasOutTime: false
-            };
+      // Group punches by date
+      const employeeAttendance = attendanceByEmployee[employee.userid] || [];
+      employeeAttendance.forEach((punch) => {
+        const dateKey = moment.utc(punch.AttDateTime).format("YYYY-MM-DD");
+        if (!dailyPunches[dateKey]) {
+          dailyPunches[dateKey] = {
+            firstIn: null,
+            lastOut: null,
+            punches: [],
+            outSeconds: 0,
+            hasAttendance: false,
+            isHoliday: false,
+            holidayName: null,
+            holidayDescription: null,
+            isSunday: false,
+            isEarnedSunday: false,
+            requiredWorkingSeconds: standardWorkingSeconds,
+            sundayValue: 0,
+            sundayValueFormatted: "00:00:00",
+            workingSeconds: 0,
+            workingHours: null,
+            workingHoursFormatted: "00:00:00",
+            hoursESeconds: 0,
+            hoursE: "00:00:00",
+            balanceSeconds: 0,
+            balanceHours: "00:00:00",
+            processedForOutDetails: false,
+          };
+        }
+        dailyPunches[dateKey].punches.push(punch);
+        dailyPunches[dateKey].hasAttendance = true;
+      });
+
+      // Include all dates in range
+      let currentDate = moment.utc(dateFrom);
+      const endDate = moment.utc(dateTo);
+
+      while (currentDate <= endDate) {
+        const dateKey = currentDate.format("YYYY-MM-DD");
+        if (!dailyPunches[dateKey]) {
+          dailyPunches[dateKey] = {
+            firstIn: null,
+            lastOut: null,
+            punches: [],
+            outSeconds: 0,
+            hasAttendance: false,
+            isHoliday: false,
+            holidayName: null,
+            holidayDescription: null,
+            isSunday: false,
+            isEarnedSunday: false,
+            requiredWorkingSeconds: standardWorkingSeconds,
+            sundayValue: 0,
+            sundayValueFormatted: "00:00:00",
+            workingSeconds: 0,
+            workingHours: null,
+            workingHoursFormatted: "00:00:00",
+            hoursESeconds: 0,
+            hoursE: "00:00:00",
+            balanceSeconds: 0,
+            balanceHours: "00:00:00",
+            processedForOutDetails: false,
+          };
+        }
+        if (holidayMap[dateKey]) {
+          dailyPunches[dateKey].isHoliday = true;
+          dailyPunches[dateKey].holidayName = holidayMap[dateKey].name;
+          dailyPunches[dateKey].holidayDescription =
+            holidayMap[dateKey].description;
+        }
+        if (currentDate.isoWeekday() === 7) {
+          dailyPunches[dateKey].isSunday = true;
+          dailyPunches[dateKey].requiredWorkingSeconds = sundayWorkingSeconds;
+        }
+        currentDate = currentDate.add(1, "days");
+      }
+
+      const sortedDates = Object.keys(dailyPunches).sort(
+        (a, b) => new Date(a) - new Date(b)
+      );
+
+      // Calculate daily values
+      sortedDates.forEach((dateKey) => {
+        const daily = dailyPunches[dateKey];
+        const punches = daily.punches;
+
+        if (punches.length > 0) {
+          const firstIn = punches.find((p) => p.io_mode === "0");
+          const lastOut = punches
+            .slice()
+            .reverse()
+            .find((p) => p.io_mode === "1");
+
+          if (firstIn && lastOut) {
+            const start = moment.utc(firstIn.AttDateTime);
+            const end = moment.utc(lastOut.AttDateTime);
+            const duration = moment.duration(end.diff(start));
+
+            daily.workingSeconds =
+              duration.asSeconds() > 0 ? duration.asSeconds() : 0;
+            daily.workingHours = duration;
+            daily.workingHoursFormatted = formatDuration(duration);
+            daily.firstIn = firstIn;
+            daily.lastOut = lastOut;
+          } else if (firstIn) {
+            daily.firstIn = firstIn;
           }
-          dailyPunches[dateKey].punches.push(punch);
-          dailyPunches[dateKey].hasAttendance = true;
-        });
-
-        // Include all dates in the range, even those without punches
-        const allDatesInRange = [];
-        let currentDate = moment.utc(dateFrom);
-        const endDate = moment.utc(dateTo);
-
-        while (currentDate <= endDate) {
-          const dateKey = currentDate.format("YYYY-MM-DD");
-          allDatesInRange.push(dateKey);
-
-          if (!dailyPunches[dateKey]) {
-            dailyPunches[dateKey] = {
-              firstIn: null,
-              lastOut: null,
-              punches: [],
-              outSeconds: 0,
-              hasAttendance: false,
-              isHoliday: false,
-              holidayName: null,
-              holidayDescription: null,
-              isSunday: false,
-              isEarnedSunday: false,
-              requiredWorkingSeconds: standardWorkingSeconds,
-              sundayValue: 0,
-              sundayValueFormatted: "00:00:00",
-              workingSeconds: 0,
-              workingHours: null,
-              workingHoursFormatted: "00:00:00",
-              hoursESeconds: 0,
-              hoursE: "00:00:00",
-              balanceSeconds: 0,
-              balanceHours: "00:00:00",
-              processedForOutDetails: false,
-              hasOutTime: false
-            };
-          }
-
-          // Mark holidays
-          if (holidayMap[dateKey]) {
-            dailyPunches[dateKey].isHoliday = true;
-            dailyPunches[dateKey].holidayName = holidayMap[dateKey].name;
-            dailyPunches[dateKey].holidayDescription = holidayMap[dateKey].description;
-          }
-
-          // Mark Sundays and set required working hours
-          if (currentDate.isoWeekday() === 7) {
-            dailyPunches[dateKey].isSunday = true;
-            dailyPunches[dateKey].requiredWorkingSeconds = sundayWorkingSeconds;
-          }
-
-          currentDate = currentDate.add(1, 'days');
         }
 
-        const sortedDates = Object.keys(dailyPunches).sort((a, b) => new Date(a) - new Date(b));
+        let dateOutSeconds = 0;
+        for (let i = 0; i < punches.length - 1; i++) {
+          const currentPunch = punches[i];
+          const nextPunch = punches[i + 1];
+          const outTimeMoment = moment.utc(currentPunch.AttDateTime);
+          const inTimeMoment = moment.utc(nextPunch.AttDateTime);
 
-        // Calculate daily working hours (first in to last out)
-        sortedDates.forEach(dateKey => {
-          const daily = dailyPunches[dateKey];
-          const punches = daily.punches;
-          
-          if (punches.length > 0) {
-            const firstIn = punches.find(p => p.io_mode === '0');
-            const lastOut = punches.slice().reverse().find(p => p.io_mode === '1');
-            
-            if (firstIn) {
-              daily.firstIn = firstIn;
-              if (lastOut) {
-                const start = moment.utc(firstIn.AttDateTime);
-                const end = moment.utc(lastOut.AttDateTime);
-                const duration = moment.duration(end.diff(start));
-                
-                daily.workingSeconds = duration.asSeconds();
-                daily.workingHours = duration;
-                daily.workingHoursFormatted = formatDuration(duration);
-                daily.lastOut = lastOut;
-              } else {
-                // Only first in exists
-                daily.workingSeconds = 0;
-                daily.workingHours = moment.duration(0);
-                daily.workingHoursFormatted = "00:00:00";
-              }
-            }
-          }
-        });
-
-        // Calculate daily out seconds (sum of all out durations)
-        sortedDates.forEach(dateKey => {
-          const daily = dailyPunches[dateKey];
-          const punches = daily.punches;
-          let dateOutSeconds = 0;
-          let hasOutTime = false;
-
-          for (let i = 0; i < punches.length - 1; i++) {
-            const current = punches[i];
-            const next = punches[i + 1];
-            if (current.io_mode === '1' && next.io_mode === '0') {
-              const outTime = moment.utc(current.AttDateTime);
-              const inTime = moment.utc(next.AttDateTime);
-              const duration = moment.duration(inTime.diff(outTime));
+          if (
+            currentPunch.io_mode === "1" &&
+            nextPunch.io_mode === "0" &&
+            outTimeMoment.isSame(inTimeMoment, "day")
+          ) {
+            const duration = moment.duration(inTimeMoment.diff(outTimeMoment));
+            if (duration.asSeconds() > 0) {
               dateOutSeconds += duration.asSeconds();
-              hasOutTime = true;
             }
           }
+        }
+        daily.outSeconds = dateOutSeconds;
+        daily.outDuration = formatDurationWithSign(dateOutSeconds);
 
-          daily.outSeconds = dateOutSeconds;
-          daily.outDuration = formatDurationWithSign(dateOutSeconds);
-          daily.hasOutTime = hasOutTime;
-          employeeTotalOutSeconds += dateOutSeconds;
-        });
+        daily.hoursESeconds = standardBreakSeconds - daily.outSeconds;
+        const displayDailyHoursESeconds = Math.min(0, daily.hoursESeconds);
+        daily.hoursE = formatDurationWithSign(displayDailyHoursESeconds);
 
-        // Calculate total working seconds
-        employeeTotalWorkingSeconds = 0;
-        sortedDates.forEach(dateKey => {
-          if (dailyPunches[dateKey].workingSeconds) {
-            employeeTotalWorkingSeconds += dailyPunches[dateKey].workingSeconds;
-          }
-        });
+        const excessBreakSeconds = Math.max(
+          0,
+          daily.outSeconds - standardBreakSeconds
+        );
+        daily.balanceSeconds = (daily.workingSeconds || 0) - excessBreakSeconds;
+        daily.balanceHours = formatDurationWithSign(daily.balanceSeconds);
+      });
 
-        // Count present, absent and earned Sundays
-        let presentDays = 0;
-        let absentDays = 0;
-        let earnedSundayCount = 0;
-        let totalSundays = 0;
-        const weekWorkMap = {};
-        const weekBalanceMap = {};
+      // Present, absent and earned Sundays count
+      let presentDays = 0;
+      let absentDays = 0;
+      let totalSundays = 0;
+      const weekWorkMap = {};
+      const weekBalanceMap = {};
 
-        sortedDates.forEach(dateKey => {
+      sortedDates.forEach((dateKey) => {
+        const daily = dailyPunches[dateKey];
+        const hasAttendance = daily.hasAttendance;
+        const isHoliday = daily.isHoliday;
+        const isSunday = daily.isSunday;
+
+        if (isSunday) totalSundays++;
+
+        if (hasAttendance) {
+          presentDays++;
+          const weekNum = moment.utc(dateKey).isoWeek();
           const weekday = moment.utc(dateKey).isoWeekday();
-          const daily = dailyPunches[dateKey];
-          const hasAttendance = daily.hasAttendance;
-          const isHoliday = daily.isHoliday;
-          const isSunday = daily.isSunday;
-
-          if (isSunday) {
-            totalSundays++;
-          }
-
-          if (hasAttendance) {
-            presentDays++;
-
-            if (weekday >= 1 && weekday <= 6 && daily.workingSeconds >= standardWorkingSeconds) {
-              const weekNum = moment.utc(dateKey).isoWeek();
+          if (weekday >= 1 && weekday <= 6) {
+            if (daily.workingSeconds >= standardWorkingSeconds) {
               if (!weekWorkMap[weekNum]) weekWorkMap[weekNum] = [];
               weekWorkMap[weekNum].push(dateKey);
             }
-          } else if (!isHoliday && !isSunday) {
-            absentDays++;
+            if (!weekBalanceMap[weekNum]) weekBalanceMap[weekNum] = 0;
+            weekBalanceMap[weekNum] += daily.balanceSeconds;
           }
-        });
+        } else if (!isHoliday && !isSunday) {
+          absentDays++;
+        }
+      });
 
-        // Mark earned Sundays
-        Object.entries(weekWorkMap).forEach(([weekNum, days]) => {
-          if (days.length >= 6) {
-            earnedSundayCount++;
-            const sundayKey = sortedDates.find(dateKey => 
-              moment.utc(dateKey).isoWeek() === parseInt(weekNum) && 
+      // Sunday Value calculations
+      Object.entries(weekWorkMap).forEach(([weekNum, days]) => {
+        if (days.length >= 6) {
+          const sundayKey = sortedDates.find(
+            (dateKey) =>
+              moment.utc(dateKey).isoWeek() === parseInt(weekNum) &&
               moment.utc(dateKey).isoWeekday() === 7
-            );
-            if (sundayKey && dailyPunches[sundayKey]) {
-              dailyPunches[sundayKey].isEarnedSunday = true;
-              dailyPunches[sundayKey].requiredWorkingSeconds = standardWorkingSeconds;
-            }
+          );
+          if (sundayKey && dailyPunches[sundayKey]) {
+            dailyPunches[sundayKey].isEarnedSunday = true;
+            dailyPunches[sundayKey].requiredWorkingSeconds =
+              standardWorkingSeconds;
           }
-        });
-
-        // Calculate HoursE and Balance Hours with carry forward
-        let carryForwardSeconds = 0;
-        sortedDates.forEach(dateKey => {
-          const weekday = moment.utc(dateKey).isoWeekday();
+        }
+      });
+      sortedDates.forEach((dateKey) => {
+        const daily = dailyPunches[dateKey];
+        if (daily.isSunday) {
           const weekNum = moment.utc(dateKey).isoWeek();
+          const weekdayBalance = weekBalanceMap[weekNum] || 0;
+          daily.sundayValue = weekdayBalance / 6;
+          daily.sundayValueFormatted = formatDurationWithSign(
+            daily.sundayValue
+          );
+        }
+      });
+
+      // Prepare outDetails
+      for (let i = 0; i < employeeAttendance.length - 1; i++) {
+        const current = employeeAttendance[i];
+        const next = employeeAttendance[i + 1];
+        const outTime = moment.utc(current.AttDateTime);
+        const inTime = moment.utc(next.AttDateTime);
+
+        if (
+          current.io_mode === "1" &&
+          next.io_mode === "0" &&
+          outTime.isSame(inTime, "day")
+        ) {
+          const duration = moment.duration(inTime.diff(outTime));
+          const dateKey = outTime.format("YYYY-MM-DD");
           const daily = dailyPunches[dateKey];
-          const requiredSeconds = daily.requiredWorkingSeconds;
-          
-          let hoursESeconds = 0;
-          
-          if (daily.hasOutTime) {
-            hoursESeconds = standardBreakSeconds - daily.outSeconds;
-          }
-          
-          hoursESeconds += carryForwardSeconds;
-          carryForwardSeconds = 0;
 
-          daily.hoursESeconds = hoursESeconds;
-          daily.hoursE = formatDurationWithSign(hoursESeconds);
-          employeeTotalHoursESeconds += hoursESeconds;
+          if (daily) daily.processedForOutDetails = true;
 
-          let balanceSeconds = 0;
-          const workingSeconds = daily.workingSeconds || 0;
-          
-          if (daily.isHoliday && daily.hasAttendance) {
-            balanceSeconds = requiredSeconds - Math.abs(hoursESeconds);
-          } else if (daily.isEarnedSunday) {
-            balanceSeconds = requiredSeconds - Math.abs(hoursESeconds);
-          } else {
-            balanceSeconds = workingSeconds - Math.abs(hoursESeconds);
-          }
+          employeeOutDetails.push({
+            "S.No.": employeeOutDetails.length + 1,
+            Employee: employee.empname,
+            EmpCode: employee.userid,
+            Date: outTime.format("DD-MMM-YYYY"),
+            FirstIn: daily.firstIn
+              ? moment.utc(daily.firstIn.AttDateTime).format("HH:mm:ss")
+              : "N/A",
+            LastOut: daily.lastOut
+              ? moment.utc(daily.lastOut.AttDateTime).format("HH:mm:ss")
+              : "N/A",
+            WorkingHours: daily.workingHoursFormatted,
+            HoursE: daily.hoursE,
+            BalanceHours: daily.balanceHours,
+            SundayValue: daily.sundayValueFormatted,
+            "Out Time": outTime.format("HH:mm:ss"),
+            "In Time": inTime.format("HH:mm:ss"),
+            "Out Duration":
+              duration.asSeconds() > 0 ? formatDuration(duration) : "00:00:00",
+            "Total Out Duration": daily.outDuration,
+            "Attendance From": current.verifyMode,
+            IsHoliday: daily.isHoliday,
+            HolidayName: daily.holidayName,
+            IsSunday: daily.isSunday,
+            IsEarnedSunday: daily.isEarnedSunday,
+            StandardBreakDuration: standardBreakSeconds / 60 + " minutes",
+            StandardWorkingHours: standardWorkingHours + " hours",
+            SundayType: sundayType,
+            SundayWorkingHours: sundayWorkingSeconds / 3600 + " hours",
+            MinuteSalary: minuteSalary,
+            HourlySalary: hourlySalary,
+            DailySalary: dailySalary,
+            GraceMinutes: employeeGraceMinutes,
+          });
+        }
+      }
+      sortedDates.forEach((dateKey) => {
+        const daily = dailyPunches[dateKey];
+        if (daily.hasAttendance && !daily.processedForOutDetails) {
+          const firstIn = daily.firstIn;
+          employeeOutDetails.push({
+            "S.No.": employeeOutDetails.length + 1,
+            Employee: employee.empname,
+            EmpCode: employee.userid,
+            Date: moment.utc(dateKey).format("DD-MMM-YYYY"),
+            FirstIn: firstIn
+              ? moment.utc(firstIn.AttDateTime).format("HH:mm:ss")
+              : "N/A",
+            LastOut: daily.lastOut
+              ? moment.utc(daily.lastOut.AttDateTime).format("HH:mm:ss")
+              : "N/A",
+            WorkingHours: daily.workingHoursFormatted,
+            HoursE: daily.hoursE,
+            BalanceHours: daily.balanceHours,
+            SundayValue: daily.sundayValueFormatted,
+            "Out Time": "N/A",
+            "In Time": "N/A",
+            "Out Duration": "00:00:00",
+            "Total Out Duration": daily.outDuration,
+            "Attendance From": firstIn ? firstIn.verifyMode : "N/A",
+            IsHoliday: daily.isHoliday,
+            HolidayName: daily.holidayName,
+            IsSunday: daily.isSunday,
+            IsEarnedSunday: daily.isEarnedSunday,
+            StandardBreakDuration: standardBreakSeconds / 60 + " minutes",
+            StandardWorkingHours: standardWorkingHours + " hours",
+            SundayType: sundayType,
+            SundayWorkingHours: sundayWorkingSeconds / 3600 + " hours",
+            MinuteSalary: minuteSalary,
+            HourlySalary: hourlySalary,
+            DailySalary: dailySalary,
+            GraceMinutes: employeeGraceMinutes,
+          });
+        }
+      });
 
-          daily.balanceSeconds = balanceSeconds;
-          daily.balanceHours = formatDurationWithSign(balanceSeconds);
-          
-          if (weekday >= 1 && weekday <= 6) {
-            if (!weekBalanceMap[weekNum]) {
-              weekBalanceMap[weekNum] = 0;
-            }
-            weekBalanceMap[weekNum] += balanceSeconds;
-          }
-        });
+      employeeOutDetails.sort((a, b) => {
+        const dateA = new Date(a.Date);
+        const dateB = new Date(b.Date);
+        if (dateA - dateB !== 0) return dateA - dateB;
+        if (a["Out Time"] === "N/A") return 1;
+        if (b["Out Time"] === "N/A") return -1;
+        return a["Out Time"].localeCompare(b["Out Time"]);
+      });
+      employeeOutDetails.forEach((detail, index) => {
+        detail["S.No."] = index + 1;
+      });
 
-        // Calculate sundayValue (1/6 of weekday balances)
-        sortedDates.forEach(dateKey => {
-          const daily = dailyPunches[dateKey];
+      // Calculate totals from dailyPunches
+      let totalWorkingSeconds = 0;
+      let totalOutSeconds = 0;
+      let presentDaysCount = 0;
+      let totalSundayValue = 0;
+
+      sortedDates.forEach((dateKey) => {
+        const daily = dailyPunches[dateKey];
+        if (daily.hasAttendance) {
+          totalWorkingSeconds += daily.workingSeconds || 0;
+          totalOutSeconds += daily.outSeconds || 0;
+          presentDaysCount++;
           if (daily.isSunday) {
-            const weekNum = moment.utc(dateKey).isoWeek();
-            const weekdayBalance = weekBalanceMap[weekNum] || 0;
-            daily.sundayValue = weekdayBalance / 6;
-            daily.sundayValueFormatted = formatDurationWithSign(daily.sundayValue);
-          }
-        });
-
-        // Prepare outDetails - include all entries with punches
-        for (let i = 0; i < employeeAttendance.length - 1; i++) {
-          const current = employeeAttendance[i];
-          const next = employeeAttendance[i + 1];
-
-          if (current.io_mode === '1' && next.io_mode === '0') {
-            const outTime = moment.utc(current.AttDateTime);
-            const inTime = moment.utc(next.AttDateTime);
-            const duration = moment.duration(inTime.diff(outTime));
-            const dateKey = outTime.format("YYYY-MM-DD");
-            const daily = dailyPunches[dateKey];
-
-            employeeOutDetails.push({
-              "S.No.": employeeOutDetails.length + 1,
-              "Employee": employee.empname,
-              "EmpCode": employee.userid,
-              "Date": outTime.format("DD-MMM-YYYY"),
-              "FirstIn": daily.firstIn ? moment.utc(daily.firstIn.AttDateTime).format("HH:mm:ss") : "N/A",
-              "LastOut": daily.lastOut ? moment.utc(daily.lastOut.AttDateTime).format("HH:mm:ss") : "N/A",
-              "WorkingHours": daily.workingHoursFormatted,
-              "HoursE": daily.hoursE,
-              "BalanceHours": daily.balanceHours,
-              "SundayValue": daily.sundayValueFormatted,
-              "Out Time": outTime.format("HH:mm:ss"),
-              "In Time": inTime.format("HH:mm:ss"),
-              "Out Duration": formatDuration(duration),
-              "Total Out Duration": daily.outDuration,
-              "Attendance From": current.verifyMode,
-              "IsHoliday": daily.isHoliday,
-              "HolidayName": daily.holidayName,
-              "IsSunday": daily.isSunday,
-              "IsEarnedSunday": daily.isEarnedSunday,
-              "StandardBreakDuration": standardBreakSeconds / 60 + " minutes",
-              "StandardWorkingHours": standardWorkingHours + " hours",
-              "SundayType": sundayType,
-              "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours",
-              "MinuteSalary": minuteSalary.toFixed(2),
-              "HourlySalary": hourlySalary.toFixed(2),
-              "DailySalary": dailySalary.toFixed(2)
-            });
-            daily.processedForOutDetails = true;
+            totalSundayValue += daily.sundayValue || 0;
           }
         }
+      });
 
-        // Include all days with punches, even those without out-in pairs
-        sortedDates.forEach(dateKey => {
-          const daily = dailyPunches[dateKey];
-          if (daily.hasAttendance && !daily.processedForOutDetails) {
-            const firstIn = daily.punches.find(p => p.io_mode === '0');
-            employeeOutDetails.push({
-              "S.No.": employeeOutDetails.length + 1,
-              "Employee": employee.empname,
-              "EmpCode": employee.userid,
-              "Date": moment.utc(dateKey).format("DD-MMM-YYYY"),
-              "FirstIn": firstIn ? moment.utc(firstIn.AttDateTime).format("HH:mm:ss") : "N/A",
-              "LastOut": daily.lastOut ? moment.utc(daily.lastOut.AttDateTime).format("HH:mm:ss") : "N/A",
-              "WorkingHours": daily.workingHoursFormatted,
-              "HoursE": daily.hoursE,
-              "BalanceHours": daily.balanceHours,
-              "SundayValue": daily.sundayValueFormatted,
-              "Out Time": "N/A",
-              "In Time": "N/A",
-              "Out Duration": "00:00:00",
-              "Total Out Duration": daily.outDuration,
-              "Attendance From": firstIn ? firstIn.verifyMode : "N/A",
-              "IsHoliday": daily.isHoliday,
-              "HolidayName": daily.holidayName,
-              "IsSunday": daily.isSunday,
-              "IsEarnedSunday": daily.isEarnedSunday,
-              "StandardBreakDuration": standardBreakSeconds / 60 + " minutes",
-              "StandardWorkingHours": standardWorkingHours + " hours",
-              "SundayType": sundayType,
-              "SundayWorkingHours": sundayWorkingSeconds / 3600 + " hours",
-              "MinuteSalary": minuteSalary.toFixed(2),
-              "HourlySalary": hourlySalary.toFixed(2),
-              "DailySalary": dailySalary.toFixed(2)
-            });
-            daily.processedForOutDetails = true;
-          }
-        });
+      // Final Total Calculations
+      const totalBreakAllowanceSeconds =
+        presentDaysCount * standardBreakSeconds;
+      const finalTotalHoursESeconds =
+        totalBreakAllowanceSeconds - totalOutSeconds;
+      const displayTotalHoursESeconds = Math.min(0, finalTotalHoursESeconds);
 
-        // Sort outDetails by date
-        employeeOutDetails.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+      const totalExcessBreakSeconds = Math.max(
+        0,
+        totalOutSeconds - totalBreakAllowanceSeconds
+      );
+      const finalTotalBalanceSeconds =
+        totalWorkingSeconds - totalExcessBreakSeconds;
 
-        // Calculate totals from dailyPunches
-        let totalBalanceSeconds = 0;
-        let totalSundayValue = 0;
-        let totalHoursESeconds = 0;
-        let totalWorkingSeconds = 0;
-        let totalOutSeconds = 0;
-        let presentDaysCount = 0;
+      // Format all totals
+      const totalOutDuration = formatDurationWithSign(totalOutSeconds);
+      const totalWorkingDuration = formatDurationWithSign(totalWorkingSeconds);
+      const totalOutDays = (
+        totalOutSeconds /
+        (standardWorkingHours * 3600)
+      ).toFixed(2);
+      const totalHoursE = formatDurationWithSign(displayTotalHoursESeconds);
+      const totalBalanceHours = formatDurationWithSign(
+        finalTotalBalanceSeconds
+      );
+      const totalSundayValueFormatted =
+        formatDurationWithSign(totalSundayValue);
 
-        sortedDates.forEach(dateKey => {
-          const daily = dailyPunches[dateKey];
-          if (daily.hasAttendance) {
-            totalBalanceSeconds += daily.balanceSeconds || 0;
-            totalHoursESeconds += daily.hoursESeconds || 0;
-            totalWorkingSeconds += daily.workingSeconds || 0;
-            totalOutSeconds += daily.outSeconds || 0;
-            presentDaysCount++;
-
-            if (daily.isSunday) {
-              totalSundayValue += daily.sundayValue || 0;
-            }
-          }
-        });
-
-        // Format totals
-        const totalOutDuration = formatDurationWithSign(totalOutSeconds);
-        const totalWorkingDuration = formatDurationWithSign(totalWorkingSeconds);
-        const totalOutDays = (totalOutSeconds / (standardWorkingHours * 3600)).toFixed(2);
-        const totalHoursE = formatDurationWithSign(totalHoursESeconds);
-        const totalBalanceHours = formatDurationWithSign(totalBalanceSeconds);
-        const totalSundayValueFormatted = formatDurationWithSign(totalSundayValue);
-        
-        const perdaywork = presentDaysCount > 0 
-          ? (totalBalanceSeconds / (standardWorkingHours * 3600)).toFixed(2)
+      const perdaywork =
+        presentDaysCount > 0
+          ? (finalTotalBalanceSeconds / (standardWorkingHours * 3600)).toFixed(
+              2
+            )
           : "0.00";
+      const totalDaysInRange =
+        moment(dateTo).diff(moment(dateFrom), "days") + 1;
+      const workingDaysCount =
+        totalDaysInRange - totalSundays - holidayResult.recordset.length;
+      const workingDaysInSeconds =
+        workingDaysCount * standardWorkingHours * 3600;
+      const workingDaysFormatted = formatDurationWithSign(workingDaysInSeconds);
 
-        const totalDaysInRange = moment(dateTo).diff(moment(dateFrom), 'days') + 1;
-        const workingDaysCount = totalDaysInRange - totalSundays - holidayResult.recordset.length;
-        
-        const workingDaysInSeconds = workingDaysCount * standardWorkingHours * 3600;
-        const workingDaysFormatted = formatDurationWithSign(workingDaysInSeconds);
+      let calculatedEarnedSundays = 0;
+      const totalDaysInMonth = moment(dateTo).endOf("month").date(); 
+      const totalSundaysInMonth = countSundaysInMonth(
+        moment(dateFrom).startOf("month"),
+        moment(dateFrom).endOf("month")
+      );
+      const daysWithoutSundays = totalDaysInMonth - totalSundaysInMonth;
 
-        let calculatedEarnedSundays = 0;
-        if (workingDaysCount > 0) {
-          const totalSundaysInRange = countSundaysInRange(dateFrom, dateTo);
-          calculatedEarnedSundays = (totalSundaysInRange / workingDaysCount) * parseFloat(perdaywork);
-        }
-
-        employeeReports.push({
-          employeeId: employee.userid,
-          empname: employee.empname,
-          gender: employee.gender_name,
-          outDetails: employeeOutDetails,
-          totals: {
-            perdaywork: perdaywork,
-            outDays: totalOutDays,
-            outHour: totalOutDuration,
-            workingHours: totalWorkingDuration,
-            hoursE: totalHoursE,
-            balanceHours: totalBalanceHours,
-            sundayValue: totalSundayValueFormatted,
-            presentDays: presentDaysCount,
-            absentDays: absentDays,
-            totalDays: totalDaysInRange,
-            workingDays: workingDaysFormatted,
-            workingDaysCount: workingDaysCount,
-            sundays: totalSundays,
-            standardWorkingHours: standardWorkingHours + " hours",
-            holidayHour: standardWorkingHours + " hours",
-            earnedSundays: calculatedEarnedSundays.toFixed(2),
-            holidayDays: holidayResult.recordset.length,
-            standardBreakDuration: standardBreakSeconds / 60 + " minutes",
-            sundayType: sundayType,
-            sundayWorkingHours: sundayWorkingSeconds / 3600 + " hours",
-            minuteSalary: minuteSalary.toFixed(2),
-            hourlySalary: hourlySalary.toFixed(2),
-            dailySalary: dailySalary.toFixed(2),
-            salaryType: salaryType,
-            totalDaysInMonth: salaryType === 'Monthly' ? 
-              moment(`${moment(dateFrom).year()}-${moment(dateFrom).month() + 1}`, "YYYY-MM").daysInMonth() : 
-              null
-          }
-        });
+      if (daysWithoutSundays > 0) {
+        calculatedEarnedSundays =
+          (totalSundaysInMonth / daysWithoutSundays) * parseFloat(perdaywork);
       }
 
-      const response = {
-        isSuccess: true,
-        message: "Break attendance report generated successfully",
-        data: employeeReports,
-        holidays: holidayResult.recordset,
-        dateRange: {
-          from: moment.utc(dateFrom).format("DD-MMM-YYYY"),
-          to: moment.utc(dateTo).format("DD-MMM-YYYY"),
-          totalDays: moment(dateTo).diff(moment(dateFrom), 'days') + 1
+      employeeReports.push({
+        employeeId: employee.userid,
+        empname: employee.empname,
+        gender: employee.gender_name,
+        graceMinutes: employeeGraceMinutes,
+        outDetails: employeeOutDetails,
+        totals: {
+          perdaywork: perdaywork,
+          outDays: totalOutDays,
+          outHour: totalOutDuration,
+          workingHours: totalWorkingDuration,
+          hoursE: totalHoursE,
+          balanceHours: totalBalanceHours,
+          sundayValue: totalSundayValueFormatted,
+          presentDays: presentDaysCount,
+          absentDays: absentDays,
+          totalDays: totalDaysInRange,
+          workingDays: workingDaysFormatted,
+          workingDaysCount: workingDaysCount,
+          sundays: totalSundays,
+          standardWorkingHours: standardWorkingHours + " hours",
+          holidayHour: standardWorkingHours + " hours",
+          earnedSundays: calculatedEarnedSundays.toFixed(2),
+          holidayDays: holidayResult.recordset.length,
+          standardBreakDuration: standardBreakSeconds / 60 + " minutes",
+          sundayType: sundayType,
+          sundayWorkingHours: sundayWorkingSeconds / 3600 + " hours",
+          minuteSalary: minuteSalary,
+          hourlySalary: hourlySalary,
+          dailySalary: dailySalary,
+          salaryType: salaryType,
+          graceMinutes: employeeGraceMinutes,
+          totalDaysInMonth:
+            salaryType === "Monthly"
+              ? moment(
+                  `${moment(dateFrom).year()}-${moment(dateFrom).month() + 1}`,
+                  "YYYY-MM"
+                ).daysInMonth()
+              : null,
         },
-        standardBreakDuration: standardBreakSeconds / 60 + " minutes"
-      };
-
-      res.json(response);
-
-    } catch (err) {
-      console.error("Error in BreakAttendance:", err);
-      res.status(500).json({
-        isSuccess: false,
-        message: `Server error: ${err.message}`,
       });
     }
+
+    const response = {
+      isSuccess: true,
+      message: "Break attendance report generated successfully",
+      data: employeeReports,
+      holidays: holidayResult.recordset,
+      dateRange: {
+        from: moment.utc(dateFrom).format("DD-MMM-YYYY"),
+        to: moment.utc(dateTo).format("DD-MMM-YYYY"),
+        totalDays: moment(dateTo).diff(moment(dateFrom), "days") + 1,
+      },
+      standardBreakDuration: "From employee settings", // Updated this line
+    };
+
+    if (req.body.type === "pdf") {
+      try {
+        const dateRangeStr = `${moment
+          .utc(dateFrom)
+          .format("DD-MM-YYYY")} to ${moment.utc(dateTo).format("DD-MM-YYYY")}`;
+
+        const pdfData = employeeReports.flatMap((report) =>
+          report.outDetails.map((detail) => ({
+            "S.No.": detail["S.No."],
+            Employee: "✓ " + detail.Employee,
+            Date: moment(detail.Date, "DD-MMM-YYYY").format("DD-MM-YYYY"),
+            "In Time(A)": detail.FirstIn === "N/A" ? "N/A" : detail.FirstIn,
+            "Out Time(B)": detail.LastOut === "N/A" ? "N/A" : detail.LastOut,
+            "Working Hours(C)": detail.WorkingHours,
+            "Out Hours(D)": detail["Total Out Duration"],
+            "Hours E=(0.45-D)": detail.HoursE,
+            "Balance Hours(F=C-E)": detail.BalanceHours,
+            "Attendance Source": "Finger",
+          }))
+        );
+
+        const pdfColumns = [
+          { key: "S.No.", label: "S.No.", width: 40 },
+          { key: "Employee", label: "Employee", width: 100 },
+          { key: "Date", label: "Date", width: 80 },
+          { key: "In Time(A)", label: "In Time(A)", width: 70 },
+          { key: "Out Time(B)", label: "Out Time(B)", width: 70 },
+          { key: "Working Hours(C)", label: "Working Hours(C)", width: 80 },
+          { key: "Out Hours(D)", label: "Out Hours(D)", width: 70 },
+          { key: "Hours E=(0.45-D)", label: "Hours E=(0.45-D)", width: 90 },
+          {
+            key: "Balance Hours(F=C-E)",
+            label: "Balance Hours(F=C-E)",
+            width: 90,
+          },
+          { key: "Attendance Source", label: "Attendance Source", width: 80 },
+        ];
+
+        const totals = {};
+        if (employeeReports.length > 0) {
+          const report = employeeReports[0];
+          totals["Present"] = report.totals.presentDays;
+          totals["Absent"] = report.totals.absentDays;
+          totals["Given Holiday"] = report.totals.holidayDays;
+          totals["Earned Sunday"] = report.totals.earnedSundays;
+          totals["Working Days"] = report.totals.perdaywork;
+          totals["Total Working Hours"] = report.totals.workingHours;
+          totals["Total Break Time"] = report.totals.outHour;
+          totals["Final Days (Days + Sun + HD)"] = (
+            parseFloat(report.totals.perdaywork) +
+            parseFloat(report.totals.earnedSundays) +
+            report.totals.holidayDays
+          );
+          totals["Salary"] = (
+            report.totals.dailySalary *
+            parseFloat(totals["Final Days (Days + Sun + HD)"])
+          );
+        }
+
+        const pdfBuffer = await generateCustomPDFReport(
+          pdfData,
+          {
+            title: "Employee: " + (employeeReports[0]?.empname || ""),
+            subtitle: `Date Range: ${dateRangeStr}\nTotal Break Time: ${
+              employeeReports[0]?.totals?.outHour || "00:00:00"
+            }`,
+            columns: pdfColumns,
+            filename: `break_attendance_${dateFrom}_to_${dateTo}.pdf`,
+          },
+          totals
+        );
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename=break_attendance_${dateFrom}_to_${dateTo}.pdf`
+        );
+
+        return res.send(pdfBuffer);
+      } catch (err) {
+        console.error("PDF generation error:", err);
+        return res.status(500).json({
+          isSuccess: false,
+          message: "Failed to generate PDF report",
+        });
+      }
+    }
+
+    if (req.body.type === "excel") {
+      try {
+        const dateRangeStr = `${moment
+          .utc(dateFrom)
+          .format("DD-MM-YYYY")} to ${moment.utc(dateTo).format("DD-MM-YYYY")}`;
+
+        const excelData = employeeReports.flatMap((report) =>
+          report.outDetails.map((detail) => ({
+            "S.No.": detail["S.No."],
+            Employee: "✓ " + detail.Employee,
+            Date: moment(detail.Date, "DD-MMM-YYYY").format("DD-MM-YYYY"),
+            "In Time(A)": detail.FirstIn === "N/A" ? "N/A" : detail.FirstIn,
+            "Out Time(B)": detail.LastOut === "N/A" ? "N/A" : detail.LastOut,
+            "Working Hours(C)": detail.WorkingHours,
+            "Out Hours(D)": detail["Total Out Duration"],
+            "Hours E=(0.45-D)": detail.HoursE,
+            "Balance Hours(F=C-E)": detail.BalanceHours,
+            "Attendance Source": "Finger",
+          }))
+        );
+
+        const excelTotals = {};
+        if (employeeReports.length > 0) {
+          const report = employeeReports[0];
+          excelTotals["Present"] = report.totals.presentDays;
+          excelTotals["Absent"] = report.totals.absentDays;
+          excelTotals["Given Holiday"] = report.totals.holidayDays;
+          excelTotals["Earned Sunday"] = report.totals.earnedSundays;
+          excelTotals["Working Days"] = report.totals.perdaywork;
+          excelTotals["Total Working Hours"] = report.totals.workingHours;
+          excelTotals["Total Break Time"] = report.totals.outHour;
+          excelTotals["Final Days (Days + Sun + HD)"] = (
+            parseFloat(report.totals.perdaywork) +
+            parseFloat(report.totals.earnedSundays) +
+            report.totals.holidayDays
+          ).toFixed(2);
+          excelTotals["Salary"] = (
+            report.totals.dailySalary *
+            parseFloat(excelTotals["Final Days (Days + Sun + HD)"])
+          ).toFixed(2);
+        }
+
+        const buffer = await generateCustomExcelReport(excelData, excelTotals, {
+          title: "Employee: " + (employeeReports[0]?.empname || ""),
+          subtitle: `Date Range: ${dateRangeStr}\nTotal Break Time: ${
+            employeeReports[0]?.totals?.outHour || "00:00:00"
+          }`,
+          filename: `break_attendance_${dateFrom}_to_${dateTo}.xlsx`,
+        });
+
+        return res.status(200).json({
+          isSuccess: true,
+          message: "Break attendance Excel generated successfully",
+          base64: buffer.toString("base64"),
+        });
+      } catch (err) {
+        console.error("Excel generation error:", err);
+        return res.status(500).json({
+          isSuccess: false,
+          message: "Failed to generate Excel report",
+        });
+      }
+    }
+    res.json(response);
+  } catch (err) {
+    console.error("Error in BreakAttendance:", err);
+    res.status(500).json({
+      isSuccess: false,
+      message: `Server error: ${err.message}`,
+    });
+  }
 };
- // PunchCorrection
+
+// PunchCorrection
 const PunchCorrection = async (req, res) => {
-  const { userId, date, inTime, outTime, deviceId = 'MANUAL' } = req.body;
+  const { userId, date, inTime, outTime, deviceId = "MANUAL" } = req.body;
 
   // Validate required fields
   if (!userId || !date) {
     return res.status(400).json({
       isSuccess: false,
-      message: 'Missing required fields (userId, date)'
+      message: "Missing required fields (userId, date)",
     });
   }
 
@@ -2248,7 +3129,7 @@ const PunchCorrection = async (req, res) => {
   if (!inTime && !outTime) {
     return res.status(400).json({
       isSuccess: false,
-      message: 'At least one of inTime or outTime must be provided'
+      message: "At least one of inTime or outTime must be provided",
     });
   }
 
@@ -2260,14 +3141,16 @@ const PunchCorrection = async (req, res) => {
 
     // Process IN punch if provided
     if (inTime) {
-      const inDateTime = new Date(`${date}T${inTime.includes(':') ? inTime : inTime + ':00'}`);
-      
+      const inDateTime = new Date(
+        `${date}T${inTime.includes(":") ? inTime : inTime + ":00"}`
+      );
+
       // Try to update existing record first
-      const updateResult = await transaction.request()
-        .input('deviceId', sql.NVarChar, deviceId)
-        .input('userId', sql.Int, userId)
-        .input('attDateTime', sql.DateTime, inDateTime)
-        .query(`
+      const updateResult = await transaction
+        .request()
+        .input("deviceId", sql.NVarChar, deviceId)
+        .input("userId", sql.Int, userId)
+        .input("attDateTime", sql.DateTime, inDateTime).query(`
           UPDATE UserAttendance 
           SET 
             AttState = 0,
@@ -2284,11 +3167,11 @@ const PunchCorrection = async (req, res) => {
 
       // If no existing record, insert new one
       if (updateResult.rowsAffected[0] === 0) {
-        await transaction.request()
-          .input('deviceId', sql.NVarChar, deviceId)
-          .input('userId', sql.Int, userId)
-          .input('attDateTime', sql.DateTime, inDateTime)
-          .query(`
+        await transaction
+          .request()
+          .input("deviceId", sql.NVarChar, deviceId)
+          .input("userId", sql.Int, userId)
+          .input("attDateTime", sql.DateTime, inDateTime).query(`
             INSERT INTO UserAttendance (
               DeviceID, UserID, AttState, VerifyMode, AttDateTime, 
               UpdateedOn, IsAbnomal, upload, io_mode
@@ -2302,13 +3185,15 @@ const PunchCorrection = async (req, res) => {
 
     // Process OUT punch if provided
     if (outTime) {
-      const outDateTime = new Date(`${date}T${outTime.includes(':') ? outTime : outTime + ':00'}`);
-      
-      const updateResult = await transaction.request()
-        .input('deviceId', sql.NVarChar, deviceId)
-        .input('userId', sql.Int, userId)
-        .input('attDateTime', sql.DateTime, outDateTime)
-        .query(`
+      const outDateTime = new Date(
+        `${date}T${outTime.includes(":") ? outTime : outTime + ":00"}`
+      );
+
+      const updateResult = await transaction
+        .request()
+        .input("deviceId", sql.NVarChar, deviceId)
+        .input("userId", sql.Int, userId)
+        .input("attDateTime", sql.DateTime, outDateTime).query(`
           UPDATE UserAttendance 
           SET 
             AttState = 1,
@@ -2324,11 +3209,11 @@ const PunchCorrection = async (req, res) => {
         `);
 
       if (updateResult.rowsAffected[0] === 0) {
-        await transaction.request()
-          .input('deviceId', sql.NVarChar, deviceId)
-          .input('userId', sql.Int, userId)
-          .input('attDateTime', sql.DateTime, outDateTime)
-          .query(`
+        await transaction
+          .request()
+          .input("deviceId", sql.NVarChar, deviceId)
+          .input("userId", sql.Int, userId)
+          .input("attDateTime", sql.DateTime, outDateTime).query(`
             INSERT INTO UserAttendance (
               DeviceID, UserID, AttState, VerifyMode, AttDateTime, 
               UpdateedOn, IsAbnomal, upload, io_mode
@@ -2344,24 +3229,24 @@ const PunchCorrection = async (req, res) => {
 
     return res.status(200).json({
       isSuccess: true,
-      message: 'Attendance correction processed successfully'
+      message: "Attendance correction processed successfully",
     });
-
   } catch (err) {
     await transaction.rollback();
-    console.error('Error in PunchCorrection:', err);
-    
-    if (err.message.includes('PRIMARY KEY')) {
+    console.error("Error in PunchCorrection:", err);
+
+    if (err.message.includes("PRIMARY KEY")) {
       return res.status(409).json({
         isSuccess: false,
-        message: 'Duplicate attendance record detected',
-        suggestion: 'Try again with slightly different time (e.g., add seconds)'
+        message: "Duplicate attendance record detected",
+        suggestion:
+          "Try again with slightly different time (e.g., add seconds)",
       });
     }
 
     return res.status(500).json({
       isSuccess: false,
-      message: `Error processing correction: ${err.message}`
+      message: `Error processing correction: ${err.message}`,
     });
   }
 };
@@ -2372,5 +3257,5 @@ module.exports = {
   handleMonthlyReport,
   OutReports,
   BreakAttendance,
-  PunchCorrection
+  PunchCorrection,
 };
