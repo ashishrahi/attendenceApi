@@ -6,5 +6,6 @@ export {employeeTypeRepository} from "./employeeTypeRepository"
 export {leaveMappingRepository} from "./leaveMappingRepository"
 export {breakRepository} from './breakRepository'
 export {zoneRepository} from './zoneRepository'
+export {wardRepository} from './wardRepository'
 
 

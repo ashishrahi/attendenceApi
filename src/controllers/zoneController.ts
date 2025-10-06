@@ -1,11 +1,10 @@
 // controllers/ZoneController.ts
 import { Request, Response } from "express";
-import { Zone } from "../types/zoneTypes";
 import { StatusCodes } from "http-status-codes";
 import { zoneService } from "../services";
 
 // Create a new zone
-export const createZone = async (req: Request, res: Response) => {
+export const createZoneController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
     const { success, message, data } = await zoneService.createZoneService(
@@ -23,7 +22,7 @@ export const createZone = async (req: Request, res: Response) => {
 };
 
 // Update an existing zone
-export const updateZone = async (req: Request, res: Response) => {
+export const updateZoneController = async (req: Request, res: Response) => {
   try {
      const id = Number(req.params.id)
      const payload = req.body
@@ -41,7 +40,7 @@ export const updateZone = async (req: Request, res: Response) => {
 };
 
 // Get all zones
-export const getZone = async (req: Request, res: Response) => {
+export const getZoneController = async (req: Request, res: Response) => {
   try {
         const {success, message, data} = await zoneService.getZoneService()
 
@@ -57,7 +56,7 @@ export const getZone = async (req: Request, res: Response) => {
 };
 
 // Delete a zone
-export const deleteZone = async (
+export const deleteZoneController = async (
   req: Request,
   res: Response
 ) => {

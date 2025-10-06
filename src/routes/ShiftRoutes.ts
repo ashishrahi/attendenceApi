@@ -1,26 +1,26 @@
 // routes/shiftRoutes.ts
 import { Router, Request, Response, NextFunction } from 'express';
-import * as ShiftController from '../controllers/ShiftController';
+import {ShiftController} from "../controllers/index"
 // import auth from '../middleware/auth'; // Uncomment if authentication is needed
 
 const router = Router();
 
 router.post('/create', (req: Request, res: Response, next: NextFunction) =>
-  ShiftController.createShift(req, res)
+  ShiftController.createShiftController
 );
 
 router.put('/update', (req: Request, res: Response, next: NextFunction) =>
-  ShiftController.updateShift(req, res)
+  ShiftController.updateShiftController
 );
 
 router.get('/', (req: Request, res: Response, next: NextFunction) =>
-  ShiftController.getShift(req, res)
+  ShiftController.getShiftController
 );
 
 router.delete(
   '/delete/:id',
-  (req: Request<{ id: string }>, res: Response) =>
-    ShiftController.deleteShift(req, res)
+  (req: Request, res: Response) =>
+    ShiftController.deleteShiftController
 );
 
 export default router;

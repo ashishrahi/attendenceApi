@@ -5,7 +5,7 @@ export interface Ward {
 }
 
 export interface WardAttributes {
-  id?: number;
+  id: number;
   name: string;
   code: string;
   zone_id: number;

@@ -1,11 +1,10 @@
 import { Request, Response } from "express";
-import { ShiftRequestBody } from "../types/shiftTypes";
 import { StatusCodes } from "http-status-codes";
 import { shiftService } from "../services";
 import ShiftCreationAttributes from "../model/shiftModel";
 
 // Create Shift
-export const createShift = async (
+export const createShiftController = async (
   req: Request<{}, {}, ShiftCreationAttributes>,
   res: Response
 ) => {
@@ -25,7 +24,7 @@ export const createShift = async (
 };
 
 // Get Shifts
-export const getShift = async (req: Request, res: Response) => {
+export const getShiftController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
     const { success, message, data } = await shiftService.getShiftService(
@@ -45,7 +44,7 @@ export const getShift = async (req: Request, res: Response) => {
 };
 
 // Update Shift
-export const updateShift = async (
+export const updateShiftController = async (
   req: Request,
   res: Response
 ) => {
@@ -63,7 +62,7 @@ export const updateShift = async (
 };
 
 // Delete Shift
-export const deleteShift = async (req: Request<{ id: number }>,res: Response) => {
+export const deleteShiftController = async (req: Request<{ id: number }>,res: Response) => {
   try {
     const { id } = req.params;
     const {success, message, data} = await shiftService.deleteShiftService(id);

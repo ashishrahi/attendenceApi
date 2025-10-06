@@ -3,7 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import { genderService } from "../services";
 
 // CREATE Gender
-export const createGender = async (req: Request, res: Response) => {
+export const createGenderController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
     const { success, message, data } = await genderService.createGenderService(
@@ -19,7 +19,7 @@ export const createGender = async (req: Request, res: Response) => {
 };
 
 // UPDATE Gender
-export const updateGender = async (req: Request, res: Response) => {
+export const updateGenderController = async (req: Request, res: Response) => {
   try {
     const id =  Number(req.params.id)
     const payload = req.body;
@@ -37,7 +37,7 @@ export const updateGender = async (req: Request, res: Response) => {
 };
 
 // GET all Genders
-export const getGender = async (req: Request, res: Response) => {
+export const getGenderController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
     const { success, message, data } = await genderService.getGenderService(
@@ -57,7 +57,7 @@ res.status(StatusCodes.OK).json({
 };
 
 // DELETE Gender
-export const deleteGender = async (req: Request, res: Response) => {
+export const deleteGenderController = async (req: Request, res: Response) => {
   try {
     const id =  Number(req.params.id)
     const{success, data, message} = await genderService.deleteGenderService(id)

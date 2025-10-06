@@ -11,7 +11,7 @@ import{createGenderService, updateGenderService, getGenderService, deleteGenderS
 import {createEmployeeTypeService, updateEmployeeTypeService, getEmployeeTypeService, deleteEmployeeTypeService } from './employeTypeService'
 import {createBreakService, getBreakService, updateBreakService, deleteBreakService } from './breakService'
 import {createZoneService, getZoneService, updateZoneService, deleteZoneService } from './zoneService'
-
+import {createWardService, getWardService, updateWardService, deleteWardService } from './wardService'
 // area service
 export const areaService = {
     createAreaService: createAreaService,
@@ -86,4 +86,11 @@ export const zoneService = {
     getZoneService : getZoneService,
     updateZoneService : updateZoneService,
     deleteZoneService: deleteZoneService
+}
+// wardService
+export const wardService = {
+    createWardService : createWardService,
+    getWardService : getWardService,
+    updateWardService : updateWardService,
+    deleteWardService: deleteWardService
 }
