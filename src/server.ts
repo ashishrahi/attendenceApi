@@ -91,9 +91,7 @@ app.use('/api/break', BreakRoutes);
 // app.use('/api/dashboard', DashboardRoutes);
 
 // Swagger setup
-const swaggerFilePath = path.join(__dirname, './swagger-output.json');
-const swaggerFile = require(swaggerFilePath);
-// app.use('/app', swaggerUi.serve, swaggerUi.setup(swaggerFile));
+
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
