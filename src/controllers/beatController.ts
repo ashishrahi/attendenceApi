@@ -5,7 +5,7 @@ import BeatCreationAttributes from '../model/beatModel'
 
 
 // create
-export const createBeat = async (req: Request, res: Response) => {
+export const createBeatController = async (req: Request, res: Response) => {
   try {
    const  payload: BeatCreationAttributes = req.body;
 
@@ -25,7 +25,7 @@ const {success, message, data} = await BeatService.createBeatService(payload)
   }
 };
 // get
-export const getBeat = async (req: Request, res: Response) => {
+export const getBeatController = async (req: Request, res: Response) => {
   try {
    const{success, message, data} = await BeatService.getBeatService()
 
@@ -45,7 +45,7 @@ export const getBeat = async (req: Request, res: Response) => {
 };
 
 
-export const updateBeat = async (req: Request, res: Response) => {
+export const updateBeatController = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     const payload = req.body;
@@ -67,7 +67,7 @@ export const updateBeat = async (req: Request, res: Response) => {
 
 
 
-export const deleteBeat = async (req: Request, res: Response) => {
+export const deleteBeatController = async (req: Request, res: Response) => {
   try {
     const  id  = Number(req.params.id);
     const {success, message} = await BeatService.deleteBeatService(id);

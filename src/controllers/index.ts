@@ -5,6 +5,7 @@ import { createShiftController, updateShiftController, getShiftController, delet
 import { createGenderController, updateGenderController, getGenderController, deleteGenderController } from "./genderController"
 import { createZoneController, updateZoneController, getZoneController, deleteZoneController } from "./zoneController"
 import { createWardController, updateWardController, getWardController, deleteWardController } from "./wardController"
+import { createBeatController, getBeatController, updateBeatController, deleteBeatController } from "./beatController"
 
 // auth
 export const authController = {
@@ -54,4 +55,11 @@ createWardController: createWardController,
 updateWardController: updateWardController,
 getWardController: getWardController,
 deleteWardController: deleteWardController
+}
+// BeatController
+export const BeatController = {
+createBeatController: createBeatController,
+getBeatController: getBeatController,
+updateBeatController: updateBeatController,
+deleteBeatController: deleteBeatController
 }

@@ -78,7 +78,7 @@ app.use('/api/break', BreakRoutes);
 // app.use('/api/usertype', User_TypeRoutes);
 // app.use('/api/menu', MenuRoutes);
 // app.use('/api/roleuser', RoleWithPermissionRoutes);
-app.use('/api/user', UserRoutes);
+// app.use('/api/user', UserRoutes);
 // app.use('/api/login', LoginRoutes);
 // app.use('/api/userpermission', UserPermissionRoutes);
 // app.use('/api/leavetype', LeaveTypeRoutes);
