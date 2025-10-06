@@ -2,13 +2,12 @@
   "name": "node-api",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "swagger:generate": "node src/swagger.js",
-    "build": "esbuild src/server.ts --bundle --platform=node --outfile=dist/bundle.js",
-    "start": "node dist/bundle.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "swagger": "node src/swagger.js"
-  },
+ "scripts": {
+  "build": "esbuild src/server.ts --bundle --platform=node --outfile=dist/bundle.js",
+  "start": "node dist/bundle.js",
+  "dev": "ts-node-dev --respawn --transpile-only src/server.ts"
+}
+,
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.10",
     "@types/nodemailer": "^7.0.1",
