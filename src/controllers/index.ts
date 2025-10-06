@@ -6,6 +6,7 @@ import { createGenderController, updateGenderController, getGenderController, de
 import { createZoneController, updateZoneController, getZoneController, deleteZoneController } from "./zoneController"
 import { createWardController, updateWardController, getWardController, deleteWardController } from "./wardController"
 import { createBeatController, getBeatController, updateBeatController, deleteBeatController } from "./beatController"
+import { createHolidayController, updateHolidayController, getHolidaysController, deleteHolidayController } from "./holidayController"
 
 // auth
 export const authController = {
@@ -62,4 +63,11 @@ createBeatController: createBeatController,
 getBeatController: getBeatController,
 updateBeatController: updateBeatController,
 deleteBeatController: deleteBeatController
+}
+// HoliDayController
+export const HoliDayController = {
+createHolidayController: createHolidayController,
+updateHolidayController: updateHolidayController,
+getHolidaysController: getHolidaysController,
+deleteHolidayController: deleteHolidayController
 }

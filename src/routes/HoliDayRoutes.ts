@@ -1,31 +1,31 @@
 // routes/holidayRoutes.ts
-import { Router, Request, Response, NextFunction } from 'express';
-import * as HoliDayController from '../controllers/HoliDayController';
+import { Router, Request, Response } from 'express';
+import {HoliDayController} from '../controllers/index';
 
 const router = Router();
 
 router.post(
-  '/create',
-  (req: Request, res: Response, next: NextFunction) =>
-    HoliDayController.createHoliday(req, res)
+  '/',
+  (req: Request, res: Response) =>
+    HoliDayController.createHolidayController
 );
 
 router.put(
-  '/update/:id',
-  (req: Request, res: Response, next: NextFunction) =>
-    HoliDayController.updateHoliday(req, res)
+  '/:id',
+  (req: Request, res: Response) =>
+    HoliDayController.updateHolidayController
 );
 
 router.get(
   '/',
-  (req: Request, res: Response, next: NextFunction) =>
-    HoliDayController.getHolidays(req, res)
+  (req: Request, res: Response) =>
+    HoliDayController.getHolidaysController
 );
 
 router.delete(
-  '/delete/:id',
-  (req: Request, res: Response, next: NextFunction) =>
-    HoliDayController.deleteHoliday(req, res)
+  '/:id',
+  (req: Request, res: Response) =>
+    HoliDayController.deleteHolidayController
 );
 
 export default router;

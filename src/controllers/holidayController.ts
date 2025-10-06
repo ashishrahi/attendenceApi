@@ -1,83 +1,31 @@
 import { Request, Response } from 'express';
-import { getConnection, sql } from '../config/database';
-import { HolidayInput } from '../types/holidayTypes';
+import { StatusCodes } from 'http-status-codes';
+import { holidayService } from '../services/index';
 
 
 // CREATE Holiday
-export const createHoliday = async (req: Request, res: Response) => {
+export const createHolidayController = async (req: Request, res: Response) => {
   try {
-    const {
-      HolidayName,
-      Description,
-      Date,
-      IsActive = true,
-      CreatedAt = new Date(),
-      UpdatedAt = new Date()
-    }: HolidayInput = req.body;
+        const payload = req.body
+   const {success, message, data} = await holidayService.createHolidayService(payload)
 
-    const pool = await getConnection();
 
-    const result = await pool.request()
-      .input('HolidayName', sql.NVarChar, HolidayName)
-      .input('Description', sql.NVarChar, Description)
-      .input('Date', sql.Date, Date)
-      .input('IsActive', sql.Bit, IsActive)
-      .input('CreatedAt', sql.DateTime, CreatedAt)
-      .input('UpdatedAt', sql.DateTime, UpdatedAt)
-      .query(`
-        INSERT INTO holiDaySchedule (HolidayName, Description, Date, IsActive, CreatedAt, UpdatedAt)
-        VALUES (@HolidayName, @Description, @Date, @IsActive, @CreatedAt, @UpdatedAt);
-
-        SELECT 1 AS IsSuccess, 'Holiday added successfully' AS Message;
-      `);
-
-    const { IsSuccess, Message } = result.recordset[0];
-
-    res.json({ success: IsSuccess, message: Message });
+    res.status(StatusCodes.CREATED).json({ success, message, data });
 
   } catch (error: any) {
     console.error('Error in createHoliday:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
 // UPDATE Holiday
-export const updateHoliday = async (req: Request, res: Response) => {
+export const updateHolidayController = async (req: Request, res: Response) => {
   try {
-    const {
-      ID,
-      HolidayName,
-      Description,
-      Date,
-      IsActive,
-      UpdatedAt = new Date()
-    }: HolidayInput = req.body;
+    const id = Number(req.params.id)
+    const payload = req.body;
+    const{success, message, data} = await holidayService.updateHolidayService(id, payload)
 
-    if (!ID) return res.status(400).json({ success: false, message: 'ID is required' });
-
-    const pool = await getConnection();
-
-    const result = await pool.request()
-      .input('ID', sql.Int, ID)
-      .input('HolidayName', sql.NVarChar, HolidayName)
-      .input('Description', sql.NVarChar, Description)
-      .input('Date', sql.Date, Date)
-      .input('IsActive', sql.Bit, IsActive)
-      .input('UpdatedAt', sql.DateTime, UpdatedAt)
-      .query(`
-        UPDATE holiDaySchedule
-        SET HolidayName = @HolidayName,
-            Description = @Description,
-            Date = @Date,
-            IsActive = @IsActive,
-            UpdatedAt = @UpdatedAt
-        WHERE ID = @ID;
-
-        SELECT 1 AS IsSuccess, 'Holiday updated successfully' AS Message;
-      `);
-
-    const { IsSuccess, Message } = result.recordset[0];
-    res.json({ success: IsSuccess, message: Message });
+    res.status(StatusCodes.OK).json({ success, message, data});
 
   } catch (error: any) {
     console.error('Error in updateHoliday:', error);
@@ -86,13 +34,11 @@ export const updateHoliday = async (req: Request, res: Response) => {
 };
 
 // GET All Holidays
-export const getHolidays = async (_req: Request, res: Response) => {
+export const getHolidaysController = async (_req: Request, res: Response) => {
   try {
-    const pool = await getConnection();
-    const result = await pool.request()
-      .query(`SELECT * FROM holiDaySchedule ORDER BY Date ASC`);
+   const{success, message, data} = await holidayService.getHolidayService()
 
-    res.json({ success: true, message: 'Holidays fetched successfully', data: result.recordset });
+    res.status(StatusCodes.OK).json({ success, message, data });
 
   } catch (error: any) {
     console.error('Error in getHolidays:', error);
@@ -101,22 +47,10 @@ export const getHolidays = async (_req: Request, res: Response) => {
 };
 
 // DELETE Holiday
-export const deleteHoliday = async (req: Request, res: Response) => {
+export const deleteHolidayController = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-
-    if (!id || isNaN(id)) return res.status(400).json({ success: false, message: 'Invalid ID' });
-
-    const pool = await getConnection();
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .query(`DELETE FROM holiDaySchedule WHERE ID = @id`);
-
-    if (result.rowsAffected[0] > 0) {
-      res.json({ success: true, message: 'Holiday deleted successfully' });
-    } else {
-      res.status(404).json({ success: false, message: 'Holiday not found' });
-    }
+    const {success, message, data} = await holidayService.deleteHolidayService(id)
 
   } catch (error: any) {
     console.error('Error in deleteHoliday:', error);
