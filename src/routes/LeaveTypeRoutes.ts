@@ -1,32 +1,32 @@
 // routes/leaveTypeRoutes.ts
 import { Router, Request, Response, NextFunction } from 'express';
-import * as LeaveTypeController from '../controllers/LeaveTypeController';
+import {LeaveTypeController} from '../controllers/index';
 // import auth from '../middleware/auth'; // Uncomment if authentication middleware is needed
 
 const router = Router();
 
 router.post(
-  '/create',
-  (req: Request, res: Response, next: NextFunction) =>
-    LeaveTypeController.createLeaveType(req, res)
+  '/',
+  (req: Request, res: Response) =>
+    LeaveTypeController.createLeaveTypeController(req, res)
 );
 
 router.put(
-  '/update/:id',
-  (req: Request, res: Response, next: NextFunction) =>
-    LeaveTypeController.updateLeaveType(req, res)
+  '/:id',
+  (req: Request, res: Response) =>
+    LeaveTypeController.updateLeaveTypeController(req, res)
 );
 
 router.get(
   '/',
-  (req: Request, res: Response, next: NextFunction) =>
-    LeaveTypeController.getLeaveTypes(req, res)
+  (req: Request, res: Response) =>
+    LeaveTypeController.getLeaveTypesController(req, res)
 );
 
 router.delete(
-  '/delete/:id',
-  (req: Request, res: Response, next: NextFunction) =>
-    LeaveTypeController.deleteLeaveType(req, res)
+  '/:id',
+  (req: Request, res: Response) =>
+    LeaveTypeController.deleteLeaveTypeController(req, res)
 );
 
 export default router;

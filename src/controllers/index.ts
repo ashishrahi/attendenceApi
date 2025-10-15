@@ -7,6 +7,12 @@ import { createZoneController, updateZoneController, getZoneController, deleteZo
 import { createWardController, updateWardController, getWardController, deleteWardController } from "./wardController"
 import { createBeatController, getBeatController, updateBeatController, deleteBeatController } from "./beatController"
 import { createHolidayController, updateHolidayController, getHolidaysController, deleteHolidayController } from "./holidayController"
+import { createLeaveTypeController, updateLeaveTypeController, getLeaveTypesController, deleteLeaveTypeController } from "./leaveTypeController"
+import { createEmployeeTypeController, updateEmployeeTypeController, getEmployeeTypesController, deleteEmployeeTypeController } from "./employeeTypeController"
+import { createEmployeeController, updateEmployeeController, getEmployeeController, deleteEmployeeController } from "./employeeController"
+import { createRoleController, updateRoleController, getRoleController, deleteRoleController } from "./roleController"
+import { createLeaveCategoryController, updateLeaveCategoryController, getLeaveCategoryController, deleteLeaveCategoryController } from "./leaveCategoryController"
+
 
 // auth
 export const authController = {
@@ -70,4 +76,41 @@ createHolidayController: createHolidayController,
 updateHolidayController: updateHolidayController,
 getHolidaysController: getHolidaysController,
 deleteHolidayController: deleteHolidayController
+}
+
+// LeaveTypeController
+export const LeaveTypeController = {
+createLeaveTypeController: createLeaveTypeController,
+updateLeaveTypeController: updateLeaveTypeController,
+getLeaveTypesController: getLeaveTypesController,
+deleteLeaveTypeController: deleteLeaveTypeController
+}
+// EmployeeTypeController
+export const EmployeeTypeController = {
+createEmployeeTypeController: createEmployeeTypeController,
+updateEmployeeTypeController: updateEmployeeTypeController,
+getEmployeeTypesController: getEmployeeTypesController,
+deleteEmployeeTypeController: deleteEmployeeTypeController
+}
+// EmployeeController
+export const EmployeeController = {
+createEmployeeController: createEmployeeController,
+updateEmployeeController: updateEmployeeController,
+getEmployeeController: getEmployeeController,
+deleteEmployeeController: deleteEmployeeController
+}
+// RoleController
+export const RoleController = {
+createRoleController: createRoleController,
+updateRoleController: updateRoleController,
+getRoleController: getRoleController,
+deleteRoleController: deleteRoleController
+}
+
+// LeaveCategoryController
+export const LeaveCategoryController = {
+createLeaveCategoryController: createLeaveCategoryController,
+updateLeaveCategoryController: updateLeaveCategoryController,
+getLeaveCategoryController: getLeaveCategoryController,
+deleteLeaveCategoryController: deleteLeaveCategoryController
 }

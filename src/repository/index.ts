@@ -7,5 +7,9 @@ export {leaveMappingRepository} from "./leaveMappingRepository"
 export {breakRepository} from './breakRepository'
 export {zoneRepository} from './zoneRepository'
 export {wardRepository} from './wardRepository'
+export {leaveTypeRepository} from './leaveTypeRepository'
+export {roleRepository} from './roleRepository'
+
+
 
 

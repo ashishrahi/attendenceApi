@@ -3,7 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import { employeeService } from "../services/index";
 
 // Create Employee
-export const createEmployee = async (
+export const createEmployeeController = async (
   req: Request,
   res: Response
 ) => {
@@ -21,7 +21,7 @@ export const createEmployee = async (
 };
 
 // Get all Employee
-export const getEmployee = async (req: Request, res: Response) => {
+export const getEmployeeController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
     const { succuss, message, data } = await employeeService.getEmployeeService(
@@ -36,7 +36,7 @@ export const getEmployee = async (req: Request, res: Response) => {
 };
 
 // Delete Persona
-export const deleteEmployee = async (req: Request, res: Response) => {
+export const deleteEmployeeController = async (req: Request, res: Response) => {
   try {
     const id  = Number(req.params.id);
     const { succuss, message } = await employeeService.deleteEmployeeService(
@@ -52,7 +52,7 @@ export const deleteEmployee = async (req: Request, res: Response) => {
 };
 
 // Update Employee
-export const updateEmployee = async (req: Request, res: Response) => {
+export const updateEmployeeController = async (req: Request, res: Response) => {
   try {
     const id  = Number(req.params.id);
     const payload = req.body;

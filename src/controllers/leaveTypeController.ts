@@ -1,103 +1,76 @@
-import { Request, Response } from 'express';
-import { getConnection, sql } from '../config/database';
+import { Request, Response } from "express";
+import { StatusCodes } from "http-status-codes";
+import { leaveTypeService } from "../services";
 
 // CREATE LEAVE TYPE
-export const createLeaveType = async (req: Request, res: Response) => {
-  const { leaveTypeName, maxDaysAllowed, description, isActive, categoryId } = req.body;
-
-  if (!leaveTypeName || maxDaysAllowed === undefined || categoryId === undefined) {
-    return res.status(400).json({
-      success: false,
-      message: 'leaveTypeName, maxDaysAllowed और categoryId आवश्यक हैं'
-    });
-  }
-
+export const createLeaveTypeController = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const pool = await getConnection();
-    await pool.request()
-      .input('LEAVE_TYPE_NAME', sql.NVarChar, leaveTypeName)
-      .input('MAX_DAYS_ALLOWED', sql.Int, maxDaysAllowed)
-      .input('DESCRIPTION', sql.NVarChar, description || '')
-      .input('IS_ACTIVE', sql.Bit, isActive)
-      .input('CATEGORY_ID', sql.Int, categoryId)
-      .query(`
-        INSERT INTO LeaveType (LeaveTypeName, MaxDaysAllowed, Description, IsActive, CategoryId)
-        VALUES (@LEAVE_TYPE_NAME, @MAX_DAYS_ALLOWED, @DESCRIPTION, @IS_ACTIVE, @CATEGORY_ID)
-      `);
-
-    res.status(201).json({ success: true, message: 'Leave Type created successfully' });
+    const payload = req.body;
+    const { success, message, data } =
+      await leaveTypeService.createLeaveTypeService(payload);
+    res.status(StatusCodes.CREATED).json({ success, message, data });
   } catch (error: any) {
-    console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error("Error:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };
 
 // GET ALL LEAVE TYPES
-export const getLeaveTypes = async (req: Request, res: Response) => {
+export const getLeaveTypesController = async (req: Request, res: Response) => {
   try {
-    const pool = await getConnection();
-    const result = await pool.request().query('SELECT * FROM LeaveType');
-    res.status(200).json({ success: true, data: result.recordset });
+    const payload = req.body;
+    const { success, message, data } =
+      await leaveTypeService.getLeaveTypeService(payload);
+    res.status(StatusCodes.CREATED).json({ success, message, data });
   } catch (error: any) {
-    console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error("Error:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };
 
 // UPDATE LEAVE TYPE
-export const updateLeaveType = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { leaveTypeName, maxDaysAllowed, description, isActive, categoryId } = req.body;
-
-  if (!leaveTypeName || maxDaysAllowed === undefined || categoryId === undefined) {
-    return res.status(400).json({
-      success: false,
-      message: 'leaveTypeName, maxDaysAllowed और categoryId आवश्यक हैं'
-    });
-  }
-
+export const updateLeaveTypeController = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const pool = await getConnection();
-    await pool.request()
-      .input('LEAVE_TYPE_ID', sql.Int, id)
-      .input('LEAVE_TYPE_NAME', sql.NVarChar, leaveTypeName)
-      .input('MAX_DAYS_ALLOWED', sql.Int, maxDaysAllowed)
-      .input('DESCRIPTION', sql.NVarChar, description || '')
-      .input('IS_ACTIVE', sql.Bit, isActive)
-      .input('CATEGORY_ID', sql.Int, categoryId)
-      .input('MODIFIED_AT', sql.DateTime, new Date())
-      .query(`
-        UPDATE LeaveType 
-        SET 
-          LeaveTypeName = @LEAVE_TYPE_NAME,
-          MaxDaysAllowed = @MAX_DAYS_ALLOWED,
-          Description = @DESCRIPTION,
-          IsActive = @IS_ACTIVE,
-          CategoryId = @CATEGORY_ID,
-          ModifiedAt = @MODIFIED_AT
-        WHERE LeaveTypeID = @LEAVE_TYPE_ID
-      `);
+    const payload = req.body;
+    const id = Number(req.params.id);
+    const { success, message, data } =
+      await leaveTypeService.updateLeaveTypeService(id, payload);
 
-    res.status(200).json({ success: true, message: 'Leave Type updated successfully' });
+    res.status(StatusCodes.OK).json({ success, message, data });
   } catch (error: any) {
-    console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error("Error:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };
 
 // DELETE LEAVE TYPE
-export const deleteLeaveType = async (req: Request, res: Response) => {
-  const { id } = req.params;
-
+export const deleteLeaveTypeController = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const pool = await getConnection();
-    await pool.request()
-      .input('LEAVE_TYPE_ID', sql.Int, id)
-      .query('DELETE FROM LeaveType WHERE LeaveTypeID = @LEAVE_TYPE_ID');
-
-    res.status(200).json({ success: true, message: 'Leave Type deleted successfully' });
+    const id = Number(req.params.id);
+    const { success, message, data } =
+      await leaveTypeService.deleteLeaveTypeService(id);
+    res
+      .status(200)
+      .json({ success, message, data });
   } catch (error: any) {
-    console.error('Error:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error("Error:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };

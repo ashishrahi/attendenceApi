@@ -3,7 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import { employeTypeService } from '../services';
 
 // CREATE Employee Type
-export const createEmployeeType = async (req: Request, res: Response) => {
+export const createEmployeeTypeController = async (req: Request, res: Response) => {
   try {
      const payload = req.body;
      const {success, message, data} = await employeTypeService.createEmployeeTypeService(payload)
@@ -16,7 +16,7 @@ export const createEmployeeType = async (req: Request, res: Response) => {
 };
 
 // UPDATE Employee Type
-export const updateEmployeeType = async (req: Request, res: Response) => {
+export const updateEmployeeTypeController = async (req: Request, res: Response) => {
   try {
    const payload = req.body;
    const id = Number(req.params.id)
@@ -30,7 +30,7 @@ export const updateEmployeeType = async (req: Request, res: Response) => {
 };
 
 // GET all Employee Types
-export const getEmployeeTypes = async (req: Request, res: Response) => {
+export const getEmployeeTypesController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
     const{success, message, data} = await employeTypeService.getEmployeeTypeService(payload)
@@ -43,7 +43,7 @@ export const getEmployeeTypes = async (req: Request, res: Response) => {
 };
 
 // DELETE Employee Type
-export const deleteEmployeeType = async (req: Request, res: Response) => {
+export const deleteEmployeeTypeController = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
    const{success, message, data} = await employeTypeService.deleteEmployeeTypeService(id)

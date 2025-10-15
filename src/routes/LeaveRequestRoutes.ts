@@ -1,6 +1,6 @@
 // routes/leaveRequestRoutes.ts
 import { Router, Request, Response, NextFunction } from 'express';
-import * as LeaveRequestController from '../controllers/LeaveRequestController';
+import {LeaveRequestController} from '../controllers/LeaveRequestController';
 // import auth from '../middleware/auth'; // Uncomment if authentication middleware is needed
 
 const router = Router();

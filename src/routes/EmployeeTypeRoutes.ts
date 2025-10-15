@@ -1,32 +1,30 @@
-// routes/employeeTypeRoutes.ts
 import { Router, Request, Response, NextFunction } from 'express';
-import * as EmployeeTypeController from '../controllers/EmployeeTypeController';
-// import auth from '../middleware/auth'; // Uncomment if authentication is needed
+import {EmployeeTypeController} from '../controllers/index';
 
 const router = Router();
 
 router.post(
-  '/create',
-  (req: Request, res: Response, next: NextFunction) =>
-    EmployeeTypeController.createEmployeeType(req, res)
+  '/',
+  (req: Request, res: Response) =>
+    EmployeeTypeController.createEmployeeTypeController(req, res)
 );
 
 router.put(
-  '/update/:id',
-  (req: Request, res: Response, next: NextFunction) =>
-    EmployeeTypeController.updateEmployeeType(req, res)
+  '/:id',
+  (req: Request, res: Response) =>
+    EmployeeTypeController.updateEmployeeTypeController(req, res)
 );
 
 router.get(
   '/',
-  (req: Request, res: Response, next: NextFunction) =>
-    EmployeeTypeController.getEmployeeTypes(req, res)
+  (req: Request, res: Response) =>
+    EmployeeTypeController.getEmployeeTypesController(req, res)
 );
 
 router.delete(
-  '/delete/:id',
-  (req: Request, res: Response, next: NextFunction) =>
-    EmployeeTypeController.deleteEmployeeType(req, res)
+  '/:id',
+  (req: Request, res: Response) =>
+    EmployeeTypeController.deleteEmployeeTypeController(req, res)
 );
 
 export default router;
