@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response} from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
@@ -7,38 +7,38 @@ import path from 'path';
 // import swaggerUi from 'swagger-ui-express';
 import sequelize from './config/dbConfig';
 sequelize.sync({ alter: true }).then(() => {
-  console.log('✅ All models synchronized');
+  console.log('All models synchronized');
 });
 
 // import initializeSocket from './controllers/socketDashboard';
 // import { getConnection } from './config/database';
 
 // Route imports
-import authRoutes from './routes/authRoutes';
-import DeptRoutes from './routes/DepartmentRoutes';
-import DesigRoutes from './routes/DesignationRoutes';
-import ZoneRoutes from './routes/ZoneRoutes';
-import WardRoutes from './routes/WardRoutes';
-import AreaRoutes from './routes/AreaRoutes';
-import BeatRoutes from './routes/BeatRoutes';
-import GenderRoutes from './routes/GenderRoutes';
+import authRoutes from './api/v1/routes/authRoutes';
+import DeptRoutes from './api/v1/routes/DepartmentRoutes';
+import DesigRoutes from './api/v1/routes/DesignationRoutes';
+import ZoneRoutes from './api/v1/routes/ZoneRoutes';
+import WardRoutes from './api/v1/routes/WardRoutes';
+import AreaRoutes from './api/v1/routes/AreaRoutes';
+import BeatRoutes from './api/v1/routes/BeatRoutes';
+import GenderRoutes from './api/v1/routes/GenderRoutes';
 // import DeviceRoutes from './routes/DeviceRoutes';
-import RoleRoutes from './routes/RoleRoutes';
-import ShiftRoutes from './routes/ShiftRoutes';
+import RoleRoutes from './api/v1/routes/RoleRoutes';
+import ShiftRoutes from './api/v1/routes/ShiftRoutes';
 // import ReportRoutes from './routes/ReportRoutes';
-import HoliDayRoutes from './routes/HoliDayRoutes';
-import BreakRoutes from './routes/BreakRoutes';
-// import User_TypeRoutes from './routes/userTypeRoutes';
+import HoliDayRoutes from './api/v1/routes/HoliDayRoutes';
+import BreakRoutes from './api/v1/routes/BreakRoutes';
+// import User_TypeRoutes from './v1/routes/userTypeRoutes';
 // import MenuRoutes from './routes/MenuRoutes';
 // import RoleWithPermissionRoutes from './routes/RoleWithPermissionRoutes';
-import EmployeeRoutes from './routes/EmployeeRoutes';
+import EmployeeRoutes from './api/v1/routes/EmployeeRoutes';
 // import LoginRoutes from './routes/LoginRoutes';
 // import UserPermissionRoutes from './routes/UserPermissionRoutes';
-import LeaveTypeRoutes from './routes/LeaveTypeRoutes';
-// import LeaveRequestRoutes from './routes/LeaveRequestRoutes';
-// import LeaveBalanceRoutes from './routes/LeaveBalanceRoutes';
-import LeaveCategoryRoutes from './routes/LeaveCategoryRoutes';
-import EmployeeTypeRoutes from './routes/EmployeeTypeRoutes';
+import LeaveTypeRoutes from './api/v1/routes/LeaveTypeRoutes';
+import LeaveRequestRoutes from './api/v1/routes/LeaveRequestRoutes';
+import LeaveBalanceRoutes from './api/v1/routes/LeaveBalanceRoutes';
+import LeaveCategoryRoutes from './api/v1/routes/LeaveCategoryRoutes';
+import EmployeeTypeRoutes from './api/v1/routes/EmployeeTypeRoutes';
 // import EmployeeMapLeaveTypeController from './routes/EmployeeMapLeaveTypeRoutes';
 // import HelpCreationRoutes from './routes/HelpCreationRoutes';
 // import DashboardRoutes from './routes/DashboardRoutes';
@@ -61,40 +61,40 @@ app.use(express.urlencoded({ extended: true }));
 
 
 // Routes
-// app.use('/api/device', DeviceRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/shift', ShiftRoutes);
-app.use('/api/holiday', HoliDayRoutes);
-app.use('/api/department', DeptRoutes);
-app.use('/api/designation', DesigRoutes);
-app.use('/api/zone', ZoneRoutes);
-app.use('/api/ward', WardRoutes);
-app.use('/api/area', AreaRoutes);
-app.use('/api/beat', BeatRoutes);
-app.use('/api/gender', GenderRoutes);
-app.use('/api/role', RoleRoutes);
-app.use('/api/break', BreakRoutes);
-// app.use('/api/report', ReportRoutes);
-// app.use('/api/usertype', User_TypeRoutes);
-// app.use('/api/menu', MenuRoutes);
-// app.use('/api/roleuser', RoleWithPermissionRoutes);
-app.use('/api/employee', EmployeeRoutes);
-// app.use('/api/login', LoginRoutes);
+// app.use('/api/v1/device', DeviceRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/shift', ShiftRoutes);
+app.use('/api/v1/holiday', HoliDayRoutes);
+app.use('/api/v1/department', DeptRoutes);
+app.use('/api/v1/designation', DesigRoutes);
+app.use('/api/v1/zone', ZoneRoutes);
+app.use('/api/v1/ward', WardRoutes);
+app.use('/api/v1/area', AreaRoutes);
+app.use('/api/v1/beat', BeatRoutes);
+app.use('/api/v1/gender', GenderRoutes);
+app.use('/api/v1/role', RoleRoutes);
+app.use('/api/v1/break', BreakRoutes);
+// app.use('/api/v1/report', ReportRoutes);
+// app.use('/api/v1/usertype', User_TypeRoutes);
+// app.use('/api/v1/menu', MenuRoutes);
+// app.use('/api/v1/roleuser', RoleWithPermissionRoutes);
+app.use('/api/v1/employee', EmployeeRoutes);
+// app.use('/api/v1/login', LoginRoutes);
 // app.use('/api/userpermission', UserPermissionRoutes);
-app.use('/api/leavetype', LeaveTypeRoutes);
-// app.use('/api/leaveapp', LeaveRequestRoutes);
-// app.use('/api/leavebalance', LeaveBalanceRoutes);
-app.use('/api/leavecategory', LeaveCategoryRoutes);
-app.use('/api/employeetype', EmployeeTypeRoutes);
-// app.use('/api/employeemap', EmployeeMapLeaveTypeController);
-// app.use('/api/helpcreate', HelpCreationRoutes);
-// app.use('/api/dashboard', DashboardRoutes);
+app.use('/api/v1/leavetype', LeaveTypeRoutes);
+app.use('/api/v1/leaveapp', LeaveRequestRoutes);
+app.use('/api/v1/leavebalance', LeaveBalanceRoutes);
+app.use('/api/v1/leavecategory', LeaveCategoryRoutes);
+app.use('/api/v1/employeetype', EmployeeTypeRoutes);
+// app.use('/api/v1/employeemap', EmployeeMapLeaveTypeController);
+// app.use('/api/v1/helpcreate', HelpCreationRoutes);
+// app.use('/api/v1/dashboard', DashboardRoutes);
 
 // Swagger setup
 
 
 // Error handling middleware
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, req: Request, res: Response) => {
   console.error(err.stack);
   res.status(500).json({
     success: false,
@@ -108,6 +108,6 @@ const PORT = Number(process.env.PORT) || 5001;
 const HOST = process.env.HOST || '0.0.0.0';
 
 server.listen(PORT, HOST, () => {
-  console.log(`🚀 Server is running on http://${HOST}:${PORT}`);
-  console.log(`🌐 Access locally: http://localhost:${PORT}`);
+  console.log(`Server is running on http://${HOST}:${PORT}`);
+  console.log(`Access locally: http://localhost:${PORT}`);
 });
