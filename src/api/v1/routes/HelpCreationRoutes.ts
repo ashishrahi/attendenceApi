@@ -1,31 +1,31 @@
 // routes/helpRoutes.ts
 import { Router, Request, Response, NextFunction } from 'express';
-import * as HelpController from '../controllers/HelpCreationController';
+import {HelpController} from '../controllers/index';
 
 const router = Router();
 
 router.post(
-  '/create',
+  '/',
   (req: Request, res: Response, next: NextFunction) =>
-    HelpController.createHelpCreation(req, res)
+    HelpController.createHelpCreationController(req, res)
 );
 
 router.put(
-  '/update/:id',
+  '/:id',
   (req: Request, res: Response, next: NextFunction) =>
-    HelpController.updateHelpCreation(req, res)
+    HelpController.updateHelpCreationController(req, res)
 );
 
 router.get(
   '/',
   (req: Request, res: Response, next: NextFunction) =>
-    HelpController.getHelpCreation(req, res)
+    HelpController.getHelpCreationController(req, res)
 );
 
 router.delete(
-  '/delete/:id',
+  '/:id',
   (req: Request, res: Response, next: NextFunction) =>
-    HelpController.deleteHelpCreation(req, res)
+    HelpController.deleteHelpCreationController(req, res)
 );
 
 export default router;

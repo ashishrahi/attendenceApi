@@ -3,8 +3,6 @@ import express, { Request, Response} from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
-import path from 'path';
-// import swaggerUi from 'swagger-ui-express';
 import sequelize from './config/dbConfig';
 sequelize.sync({ alter: true }).then(() => {
   console.log('All models synchronized');
@@ -14,7 +12,7 @@ sequelize.sync({ alter: true }).then(() => {
 // import { getConnection } from './config/database';
 
 // Route imports
-import authRoutes from './api/v1/routes/authRoutes';
+// import authRoutes from './api/v1/routes/authRoutes';
 import DeptRoutes from './api/v1/routes/DepartmentRoutes';
 import DesigRoutes from './api/v1/routes/DesignationRoutes';
 import ZoneRoutes from './api/v1/routes/ZoneRoutes';
@@ -40,7 +38,7 @@ import LeaveBalanceRoutes from './api/v1/routes/LeaveBalanceRoutes';
 import LeaveCategoryRoutes from './api/v1/routes/LeaveCategoryRoutes';
 import EmployeeTypeRoutes from './api/v1/routes/EmployeeTypeRoutes';
 // import EmployeeMapLeaveTypeController from './routes/EmployeeMapLeaveTypeRoutes';
-// import HelpCreationRoutes from './routes/HelpCreationRoutes';
+import HelpCreationRoutes from './api/v1/routes/HelpCreationRoutes';
 // import DashboardRoutes from './routes/DashboardRoutes';
 
 const app = express();
@@ -62,7 +60,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 // app.use('/api/v1/device', DeviceRoutes);
-app.use('/api/v1/auth', authRoutes);
+// app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/shift', ShiftRoutes);
 app.use('/api/v1/holiday', HoliDayRoutes);
 app.use('/api/v1/department', DeptRoutes);
@@ -87,7 +85,7 @@ app.use('/api/v1/leavebalance', LeaveBalanceRoutes);
 app.use('/api/v1/leavecategory', LeaveCategoryRoutes);
 app.use('/api/v1/employeetype', EmployeeTypeRoutes);
 // app.use('/api/v1/employeemap', EmployeeMapLeaveTypeController);
-// app.use('/api/v1/helpcreate', HelpCreationRoutes);
+app.use('/api/v1/helpcreate', HelpCreationRoutes);
 // app.use('/api/v1/dashboard', DashboardRoutes);
 
 // Swagger setup

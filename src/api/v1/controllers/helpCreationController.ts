@@ -1,18 +1,15 @@
 import { Request, Response } from 'express';
-import { apiSuccessResponse, apiErrorResponse } from '../../utilities/apiResponse';
-import * as helpCreationService from '../services/helpcreation.service';
+import { apiSuccessResponse, apiErrorResponse } from '../../../utilities/apiResponse';
+import {helpCreationService} from '../services/index';
+import { StatusCodes } from 'http-status-codes';
 
 // CREATE HelpCreation
-export const createHelpCreation = async (req: Request, res: Response) => {
+export const createHelpCreationController = async (req: Request, res: Response) => {
   try {
-    const { menuId, menuName, description }: { menuId: number; menuName: string; description: string } = req.body;
+    const payload = req.body;
 
-    if (!menuId || !menuName) {
-      return res.status(400).json(apiErrorResponse('menuId and menuName are required', 400));
-    }
-
-    const result = await helpCreationService.createHelpCreation(menuId, menuName, description);
-    res.status(201).json(apiSuccessResponse(result, 'Added successfully', 201));
+    const {success, message, data}= await helpCreationService.createHelpCreationService(payload);
+    res.status(201).json({success, message, data});
 
   } catch (error: any) {
     console.error('Error in createHelpCreation:', error);
@@ -21,15 +18,12 @@ export const createHelpCreation = async (req: Request, res: Response) => {
 };
 
 // UPDATE HelpCreation
-export const updateHelpCreation = async (req: Request, res: Response) => {
+export const updateHelpCreationController = async (req: Request, res: Response) => {
   try {
-    const { menuId, menuName, description }: { menuId: number; menuName: string; description: string } = req.body;
+     const id = Number(req.params.id)
+     const payload = req.body;
 
-    if (!menuId || !menuName) {
-      return res.status(400).json(apiErrorResponse('menuId and menuName are required', 400));
-    }
-
-    const result = await helpCreationService.updateHelpCreation(menuId, menuName, description);
+    const result = await helpCreationService.updateHelpCreationService(id, payload);
     res.json(apiSuccessResponse(result, 'Updated successfully'));
 
   } catch (error: any) {
@@ -39,40 +33,28 @@ export const updateHelpCreation = async (req: Request, res: Response) => {
 };
 
 // GET HelpCreation
-export const getHelpCreation = async (req: Request, res: Response) => {
+export const getHelpCreationController = async (req: Request, res: Response) => {
   try {
-    const menuId = req.query.menuId ? Number(req.query.menuId) : undefined;
+    
+    const {success, message, data} = await helpCreationService.getHelpCreationService();
 
-    const result = await helpCreationService.getHelpCreation(menuId);
-    const message = menuId ? 'Fetched help creation by menuId' : 'Fetched all help creation data';
-
-    res.json(apiSuccessResponse(result, message));
+    res.status(StatusCodes.OK).json({success, message, data})
 
   } catch (error: any) {
     console.error('Error in getHelpCreation:', error);
-    res.status(500).json(apiErrorResponse('Server error', 500, error.message));
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(apiErrorResponse('Server error', 500, error.message));
   }
 };
 
 // DELETE HelpCreation
-export const deleteHelpCreation = async (req: Request, res: Response) => {
+export const deleteHelpCreationController = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-
-    if (!id || isNaN(id)) {
-      return res.status(400).json(apiErrorResponse('Invalid ID', 400));
-    }
-
-    const isDeleted = await helpCreationService.deleteHelpCreation(id);
-
-    if (isDeleted) {
-      res.json(apiSuccessResponse(null, 'Deleted successfully'));
-    } else {
-      res.status(404).json(apiErrorResponse('Help creation entry not found', 404));
-    }
+    const {success, message} = await helpCreationService.deleteHelpCreationService(id)
+    res.status(StatusCodes.OK).json({success, message})
 
   } catch (error: any) {
     console.error('Error in deleteHelpCreation:', error);
-    res.status(500).json(apiErrorResponse('Server error', 500, error.message));
+    res.status(500).json({success: false, message:"server Error"});
   }
 };

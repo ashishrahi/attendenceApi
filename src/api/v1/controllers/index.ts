@@ -1,4 +1,4 @@
-import {login, resetPassword, changePassword}  from './authController'
+import {loginController, resetPasswordController, changePasswordController}  from './authController'
 import { createDepartment, getDepartment, updateDepartment, deleteDepartment } from './departmentController'
 import { createBreakController, getBreaksController, updateBreakController, deleteBreakController } from "./BreakController"
 import { createShiftController, updateShiftController, getShiftController, deleteShiftController } from "./shiftController"
@@ -14,13 +14,14 @@ import { createRoleController, updateRoleController, getRoleController, deleteRo
 import { createLeaveCategoryController, updateLeaveCategoryController, getLeaveCategoryController, deleteLeaveCategoryController } from "./leaveCategoryController"
 import { createLeaveController, updateLeaveStatusController, getAllLeaveApplicationsController, getLeaveApplicationByIdController, deleteLeaveApplicationController } from "./leaveRequestController"
 import { createLeaveBalanceController, updateLeaveBalanceController, getLeaveBalanceController, deleteLeaveBalanceController } from "./leaveBalanceController"
+import { createHelpCreationController, updateHelpCreationController, getHelpCreationController, deleteHelpCreationController } from "./helpCreationController"
 
 
 // auth
 export const authController = {
-    login : login,
-    resetPassword : resetPassword,
-    changePassword : changePassword
+    loginController : loginController,
+    resetPasswordController : resetPasswordController,
+    changePasswordController : changePasswordController
 }
 // department
 export const departmentController ={
@@ -132,4 +133,12 @@ createLeaveBalanceController: createLeaveBalanceController,
 updateLeaveBalanceController: updateLeaveBalanceController,
 getLeaveBalanceController: getLeaveBalanceController,
 deleteLeaveBalanceController: deleteLeaveBalanceController,
+}
+
+// HelpController
+export const HelpController = {
+createHelpCreationController: createHelpCreationController,
+updateHelpCreationController: updateHelpCreationController,
+getHelpCreationController: getHelpCreationController,
+deleteHelpCreationController: deleteHelpCreationController,
 }

@@ -1,4 +1,9 @@
 import {
+  loginService,
+  changePasswordService,
+  resetPasswordService,
+} from "./authenticationService";
+import {
   createBeatService,
   getBeatService,
   updateBeatService,
@@ -98,6 +103,14 @@ import {
   getbyIdLeaveService,
   deleteLeaveService
 } from "./leaveApplicationService";
+
+
+import {
+  createHelpCreationService,
+  updateHelpCreationService,
+  getHelpCreationService,
+  deleteHelpCreationService
+} from "./helpcreationService";
 
 // area service
 export const areaService = {
@@ -227,4 +240,19 @@ export const leaveBalanceService = {
   getLeaveService: getLeaveService,
   getbyIdLeaveService: getbyIdLeaveService,
   deleteLeaveService: deleteLeaveService
+};
+
+// helpCreationService
+export const helpCreationService = {
+  createHelpCreationService: createHelpCreationService,
+  updateHelpCreationService: updateHelpCreationService,
+  getHelpCreationService: getHelpCreationService,
+  deleteHelpCreationService: deleteHelpCreationService
+};
+
+// authenticationService
+export const authenticationService = {
+  loginService: loginService,
+  changePasswordService: changePasswordService,
+  resetPasswordService: resetPasswordService,
 };

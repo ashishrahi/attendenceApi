@@ -1,12 +1,13 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
+import { authenticationService } from '../services/index';
 
 
 
-export const login = async (req: Request, res: Response) => {
+export const loginController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
-  const{success, message, data} = await authenticationService.login(payload)
+  const{success, message, data} = await authenticationService.loginService()
   res.status(StatusCodes.OK).json({success, message, data})
 
       
@@ -19,10 +20,10 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
-export const changePassword = async (req: Request, res: Response) => {
+export const changePasswordController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
-    const {success, message, data} = await authenticationService.changePassword(payload);
+    const {success, message, data} = await authenticationService.changePasswordService();
     res.status(StatusCodes.OK).json({success, message, data})
    
   } catch (error: any) {
@@ -34,10 +35,10 @@ export const changePassword = async (req: Request, res: Response) => {
   }
 };
 
-export const resetPassword = async (req: Request, res: Response) => {
+export const resetPasswordController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
-    const{success, message, data} = await authenticationService.resetPassword(payload)
+    const{success, message, data} = await authenticationService.resetPasswordService()
     res.status(StatusCodes.OK).json({success, message, data})
   } catch (error: any) {
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({

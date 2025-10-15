@@ -1,19 +1,19 @@
 // routes/authRoutes.ts
 import { Router, Request, Response, NextFunction } from 'express';
-import * as authController from '../controllers/authController';
+import {authController} from '../controllers/index';
 
 const router = Router();
 
 router.post('/login', (req: Request, res: Response, next: NextFunction) =>
-  authController.login(req, res)
+  authController.loginController(req, res)
 );
 
 router.post('/resetpassword', (req: Request, res: Response, next: NextFunction) =>
-  authController.resetPassword(req, res)
+  authController.resetPasswordController(req, res)
 );
 
 router.post('/changepassword', (req: Request, res: Response, next: NextFunction) =>
-  authController.changePassword(req, res)
+  authController.changePasswordController(req, res)
 );
 
 export default router;

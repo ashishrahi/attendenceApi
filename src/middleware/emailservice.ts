@@ -1,91 +1,78 @@
-// utils/email.ts
-import nodemailer from "nodemailer";
+import nodemailer, { Transporter } from "nodemailer";
+import SMTPTransport from "nodemailer/lib/smtp-transport";
+import dotenv from "dotenv";
 
-// Gmail transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'akdwivedi7355@gmail.com',
-    pass: 'iwed ylay tlbi kwmd', // consider using environment variables for security
-  },
-});
+dotenv.config();
 
-// SMTP transporter
-const transporters = nodemailer.createTransport({
-  host: 'smtp.multifacet-software.com',
-  port: 587, // 587 for TLS, 465 for SSL
-  secure: false, // true for SSL, false for TLS
-  auth: {
-    user: 'test@multifacet-software.com',
-    pass: 'Admin@123456', // consider using environment variables
-  },
-});
-
-/**
- * Sends a temporary password email
- * @param username - User's name
- * @param temporaryPassword - Temporary password to send
- * @param email - Recipient's email
- */
-export const sendEmail = (username: string, temporaryPassword: string, email: string): void => {
-  const mailOptions: nodemailer.SendMailOptions = {
-    from: 'akdwivedi7355@gmail.com',
-    to: email,
-    subject: 'Your Temporary Password',
-    text: `Hello ${username},
-
-Your temporary password is: ${temporaryPassword}
-
-For security reasons, please log in to your account and change this password as soon as possible.
-
-If you encounter any issues or need assistance, feel free to contact our support team.
-
-Best regards,
-Multifacet Software
-    `,
-  };
-
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error('Error sending email:', error);
-    } else {
-      console.log('Email sent successfully:', info.response);
-    }
-  });
+type MailOptions = {
+  to: string | string[];
+  subject: string;
+  text?: string;
+  html?: string;
+  from?: string; // optional override
+  attachments?: Array<{ filename: string; path?: string; content?: Buffer | string }>;
 };
 
-/**
- * Sends account creation email
- * @param username - User's name
- * @param password - User's password
- * @param email - Recipient's email
- */
-export const accountCreationMail = (username: string, password: string, email: string): void => {
-  const mailOptions: nodemailer.SendMailOptions = {
-    from: 'akdwivedi7355@gmail.com',
-    to: email,
-    subject: 'Account Created Successfully',
-    text: `Hello ${username}, and welcome to our platform!
+let transporter: Transporter<SMTPTransport.SentMessageInfo>;
 
-Your account has been created successfully.
+function createSmtpTransport(): Transporter<SMTPTransport.SentMessageInfo> {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
 
-Please login to your account. Your username and password are as follows:
+  if (!host || !user || !pass) {
+    throw new Error("SMTP configuration (SMTP_HOST/SMTP_USER/SMTP_PASS) missing in env");
+  }
 
-Username: ${username}
-Password: ${password}
+  const transport = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465, // true for 465, false for other ports (STARTTLS)
+    auth: {
+      user,
+      pass,
+    },
+    // optional pool, rateLimit etc can be configured here for production
+  } as SMTPTransport.Options);
 
-If you have any questions or need assistance, feel free to reach out to us.
+  return transport;
+}
 
-Best regards,
-Multifacet Software
-    `,
+export async function initMailer(): Promise<void> {
+  if (transporter) return;
+  transporter = createSmtpTransport();
+  // verify connection configuration (helpful at startup)
+  try {
+    await transporter.verify();
+    // console.log("Mailer ready");
+  } catch (err) {
+    // If verification fails, rethrow or handle gracefully.
+    throw new Error(`Mailer verification failed: ${(err as Error).message}`);
+  }
+}
+
+export async function sendMail(options: MailOptions): Promise<nodemailer.SentMessageInfo> {
+  if (!transporter) {
+    await initMailer();
+  }
+
+  const fromEnv = `${process.env.MAIL_FROM_NAME ?? ""} <${process.env.MAIL_FROM_EMAIL ?? ""}>`;
+  const mail = {
+    from: options.from ?? fromEnv,
+    to: options.to,
+    subject: options.subject,
+    text: options.text,
+    html: options.html,
+    attachments: options.attachments,
   };
 
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error('Error sending email:', error);
-    } else {
-      console.log('Email sent successfully:', info.response);
-    }
-  });
-};
+  try {
+    const info = await transporter.sendMail(mail);
+    return info;
+  } catch (err) {
+    // Attach more context if you want, and rethrow so caller can log/handle
+    const e = err as Error;
+    throw new Error(`Failed to send email: ${e.message}`);
+  }
+}

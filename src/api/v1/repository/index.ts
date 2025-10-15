@@ -10,6 +10,9 @@ export {wardRepository} from './wardRepository'
 export {leaveTypeRepository} from './leaveTypeRepository'
 export {roleRepository} from './roleRepository'
 export {leaveRequestRepository} from './leaveRequestRepository'
+export {helpCreationRepository} from './helpCreationRepository'
+
+
 
 
 
